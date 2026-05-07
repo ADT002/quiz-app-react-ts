@@ -10,7 +10,7 @@ import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from '~/app/store';
 
 // i18n (Translation)
-import './locales/i18n';
+import './i18n';
 
 // Cookies
 import { CookiesProvider } from 'react-cookie';
