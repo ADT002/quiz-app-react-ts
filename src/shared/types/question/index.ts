@@ -19,8 +19,8 @@ export interface Question {
   match_items?: MatchItem[]; // for match_choice
   match_options?: MatchOption[]; // for match_choice
   correct_map?: Record<string, string> | any[]; // e.g. for match/map-based validation
-  level?: Level | null
-  topic?: Topic | null
+  level?: string | null
+  topic?: string | null
 }
 
 export interface Text {

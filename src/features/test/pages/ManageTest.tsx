@@ -1,17 +1,14 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { fetchTestTemplates, createTest, saveTest, deleteTest } from '~/features/test/testSlice';
-import { fetchQuestions, incrementPage } from '~/features/question/questionSlice';
-import { RootState, AppDispatch } from '~/app/store'; // cần import types store
-
-import { Plus, Filter, X } from 'lucide-react';
-import { NavigateFunction, useNavigate } from 'react-router-dom';
+import { useState, useCallback, useMemo } from 'react';
+import { Plus, Filter, X, FlaskConical, Search, Sparkles } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { toast } from 'react-toastify';
 
 import TagFilterComponent from './components/TagFilterComponent';
 import ManageTestModal, { TestFormData } from './ManageTestModal';
 import TestCardList from './TestTable';
 import { useTranslation } from 'react-i18next';
-import { AnimatePresence, motion } from "framer-motion";
+import { useTestTemplates } from '~/features/test/useTests';
+import { useQuestions } from '~/features/question/useQuestions';
 
 const initValue: TestFormData = {
   _id: '',
@@ -25,62 +22,59 @@ const initValue: TestFormData = {
   question_ids: [],
   matrix_exam: [],
   test_score: 0,
-  user_submit: []
+  user_submit: [],
 };
 
 function ManageTest() {
-  const dispatch = useDispatch<AppDispatch>();
-  const navigate: NavigateFunction = useNavigate();
   const { t } = useTranslation();
+  const {
+    items: allTestTemplates,
+    isLoading,
+    isError,
+    error,
+    create,
+    update,
+    remove,
+  } = useTestTemplates();
+  const { items: questionsFlat } = useQuestions();
 
-  const { questionsByPage, hasMoreQuestions, statusQuestion, errorQuestion } = useSelector(
-    (state: RootState) => state.questions,
-  );
-  const { allTestTemplates, status, error } = useSelector((state: RootState) => state.tests);
+  // Re-shape thành Record<page, Question[]> để truyền vào ManageTestModal
+  const questionsByPage = useMemo(() => ({ 1: questionsFlat }), [questionsFlat]);
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [activeTagFilters, setActiveTagFilters] = useState<string[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
+  const [searchText, setSearchText] = useState('');
   const [formData, setFormData] = useState<TestFormData>(initValue);
-
 
   const availableTags = useMemo(() => {
     if (!allTestTemplates) return [];
     const tagSet = new Set<string>();
     allTestTemplates.forEach((test) => {
-      if (Array.isArray(test.tags)) {
-        test.tags.forEach((tag) => tagSet.add(tag));
-      }
+      if (Array.isArray(test.tags)) test.tags.forEach((tag) => tagSet.add(tag));
     });
     return Array.from(tagSet);
   }, [allTestTemplates]);
 
   const filteredTests = useMemo(() => {
     if (!allTestTemplates) return [];
-    if (activeTagFilters.length === 0) return allTestTemplates;
-
+    const text = searchText.trim().toLowerCase();
     return allTestTemplates.filter((test) => {
-      if (!Array.isArray(test.tags)) return false;
-      return activeTagFilters.some((filterTag) => test.tags.includes(filterTag));
+      const matchTag =
+        activeTagFilters.length === 0 ||
+        (Array.isArray(test.tags) && activeTagFilters.some((f) => test.tags.includes(f)));
+      const matchSearch =
+        !text ||
+        test.test_name?.toLowerCase().includes(text) ||
+        test.descript?.toLowerCase().includes(text);
+      return matchTag && matchSearch;
     });
-  }, [allTestTemplates, activeTagFilters]);
+  }, [allTestTemplates, activeTagFilters, searchText]);
 
-  const fetchData = useCallback(async () => {
-    try {
-      await dispatch(fetchTestTemplates({ navigate }));
-      await dispatch(fetchQuestions({ navigate }));
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      alert(t('error'));
-    }
-  }, [dispatch, navigate, t]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
   const handleOpenModal = (testData: TestFormData | null = null) => {
     setIsEditing(!!testData);
+    console.log(testData)
     if (testData) {
       setFormData({
         ...testData,
@@ -93,45 +87,39 @@ function ManageTest() {
     setIsModalOpen(true);
   };
 
-  const handleCancel = useCallback(() => {
-    setIsModalOpen(false);
-  }, []);
+  const handleCancel = useCallback(() => setIsModalOpen(false), []);
 
   const handleSubmit = useCallback(async () => {
-    console
     if (!formData.test_name || formData.duration_minutes <= 0) {
-      alert(t('error'));
+      toast.error(t('error'));
       return;
     }
     const values: TestFormData = {
       ...formData,
-      user_submit: formData.user_submit ? formData.user_submit : []
+      user_submit: formData.user_submit ? formData.user_submit : [],
     };
     try {
-      if (isEditing) {
-        await dispatch(saveTest({ values, navigate }));
-        alert(t('success'));
-      } else {
-        await dispatch(createTest({ values, navigate }));
-        alert(t('success'));
-      }
+      if (isEditing) await update(values);
+      else await create(values);
+      toast.success(t('success'));
       setIsModalOpen(false);
-    } catch (error) {
-      console.error('Error saving test:', error);
-      alert(t('error'));
+    } catch {
+      toast.error(t('error'));
     }
-  }, [dispatch, isEditing, formData, navigate, t]);
+  }, [isEditing, formData, create, update, t]);
 
   const handleDelete = useCallback(
-    (testId: string) => {
-      if (window.confirm(t('confirm_.delete_test'))) {
-        dispatch(deleteTest({ _id: testId, navigate }))
-          .then(() => alert(t('delete') + ' ' + t('success')))
-          .catch(() => alert(t('error')));
+    async (testId: string) => {
+      if (!window.confirm(t('confirm_.delete_test'))) return;
+      try {
+        await remove(testId);
+        toast.success(t('delete') + ' ' + t('success'));
         setIsModalOpen(false);
+      } catch {
+        toast.error(t('error'));
       }
     },
-    [dispatch, navigate, t],
+    [remove, t],
   );
 
   const handleTagFilter = useCallback((tag: string) => {
@@ -142,90 +130,220 @@ function ManageTest() {
 
   const clearAllFilters = useCallback(() => {
     setActiveTagFilters([]);
+    setSearchText('');
   }, []);
 
+  const toggleFilterPanel = () => setIsFilterOpen((prev) => !prev);
 
-  const toggleFilterPanel = () => {
-    setIsFilterOpen((prev) => !prev);
-  };
-  { console.log('questionsByPage: ', questionsByPage) }
-  { console.log('allTestTemplates: ', allTestTemplates) }
+  /* ── Loading ── */
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-32">
+        <div className="qz-spinner" />
+        <p className="qz-caption mt-4">{t('loading')}</p>
+      </div>
+    );
+  }
 
-  if (status === 'loading') return <div className="text-center p-4">{t('loading')}</div>;
-  if (status === 'failed')
-    return <div className="text-center p-4 text-red-500">{t('error')}: {error}</div>;
+  /* ── Error ── */
+  if (isError) {
+    return (
+      <div className="qz-card max-w-md mx-auto p-6 text-center">
+        <div className="w-12 h-12 rounded-full bg-[#fee2e2] flex items-center justify-center mx-auto mb-3">
+          <X className="w-6 h-6 text-[var(--qz-danger)]" />
+        </div>
+        <p className="text-[var(--qz-danger)] font-bold">
+          {t('error')}: {error}
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <h2 className="text-3xl font-bold text-center text-gray-900 mb-4 border-b-4 border-blue-500 pb-2">
-        {t('manageTest.manage_tests')}
-      </h2>
+    <div className="space-y-6 animate-fadeIn">
+      {/* ─────────── Hero ─────────── */}
+      <header className="qz-card overflow-hidden">
+        <div className="relative bg-gradient-to-r from-[var(--qz-violet)] to-[var(--qz-violet-dark)] p-6 md:p-8">
+          <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-white/10" />
+          <div className="absolute top-1/2 right-32 w-12 h-12 rounded-full bg-[#FFC38C]/40 hidden md:block" />
 
-      {/* Filter section */}
-      <div className="mb-6">
-        <div className="flex justify-between items-center mb-2">
-          <div className="flex items-center">
+          <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 text-white/80 text-sm mb-2">
+                <FlaskConical size={16} />
+                Ngân hàng đề thi
+              </div>
+              <h1 className="qz-h1 text-white">{t('manageTest.manage_tests')}</h1>
+              <p className="text-white/80 text-sm mt-1">
+                {allTestTemplates?.length ?? 0} mẫu bài thi · Tạo, chỉnh sửa, gán vào lớp
+              </p>
+            </div>
+
             <button
-              onClick={toggleFilterPanel}
-              className="flex items-center gap-2 bg-blue-50 text-blue-600 px-3 py-2 rounded hover:bg-blue-100 transition"
+              onClick={() => handleOpenModal(null)}
+              className="qz-btn bg-white text-[var(--qz-violet-dark)] hover:bg-white/90"
             >
-              <Filter className="h-4 w-4" />
-              {isFilterOpen ? t('manageTest.hide_filters') : t('manageTest.show_filters')}
+              <Plus size={16} /> Tạo bài thi mới
             </button>
-
-            {activeTagFilters.length > 0 && (
-              <button
-                onClick={clearAllFilters}
-                className="ml-2 flex items-center gap-1 text-sm text-gray-500 hover:text-red-500"
-              >
-                <X className="h-3 w-3" /> {t('manageTest.clear_all_filters')}
-              </button>
-            )}
           </div>
         </div>
 
-        {isFilterOpen && (
-          <TagFilterComponent
-            availableTags={availableTags}
-            activeTagFilters={activeTagFilters}
-            onTagClick={handleTagFilter}
+        {/* Stats strip */}
+        <div className="grid grid-cols-3 divide-x divide-[var(--qz-border)] bg-white">
+          <div className="p-4 text-center">
+            <p className="qz-caption">Tổng số</p>
+            <p className="qz-h3 text-[var(--qz-ink)]">{allTestTemplates?.length ?? 0}</p>
+          </div>
+          <div className="p-4 text-center">
+            <p className="qz-caption">Đang lọc</p>
+            <p className="qz-h3 text-[var(--qz-violet)]">{filteredTests.length}</p>
+          </div>
+          <div className="p-4 text-center">
+            <p className="qz-caption">Tags</p>
+            <p className="qz-h3 text-[var(--qz-ink)]">{availableTags.length}</p>
+          </div>
+        </div>
+      </header>
+
+      {/* ─────────── Sticky toolbar ─────────── */}
+      <div className="qz-card p-4 sticky top-20 z-20 flex flex-col md:flex-row gap-3 md:items-center">
+        {/* Search */}
+        <div className="relative flex-1">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--qz-slate-light)] w-4 h-4" />
+          <input
+            type="text"
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            placeholder="Tìm theo tên bài thi hoặc mô tả..."
+            className="qz-input pl-11"
           />
-        )}
-      </div>
-      <div className="w-full flex justify-between mb-6">
-        <button
-          onClick={() => handleOpenModal(null)}
-          className="w-full flex justify-center items-center gap-2 text-black px-4 py-2 rounded-md hover:bg-blue-700 transition"
-        >
-          <Plus className="h-5 w-5" />
-        </button>
-      </div>
-      <TestCardList tests={filteredTests} onEdit={handleOpenModal} onFilterByTag={handleTagFilter} />
-      {isModalOpen && (
-        <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          <motion.div
-            initial={{ scale: 0.9, y: 40 }}
-            animate={{ scale: 1, y: 0 }}
-            exit={{ scale: 0.9, y: 40 }}
-            transition={{ duration: 0.25, type: 'spring', stiffness: 260, damping: 20 }}
+          {searchText && (
+            <button
+              onClick={() => setSearchText('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-[var(--qz-bg)]"
+            >
+              <X className="w-4 h-4 text-[var(--qz-slate)]" />
+            </button>
+          )}
+        </div>
+
+        {/* Filter toggle */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleFilterPanel}
+            className={`qz-btn ${isFilterOpen || activeTagFilters.length > 0
+              ? 'qz-btn-primary'
+              : 'qz-btn-secondary'
+              }`}
           >
-            <ManageTestModal
-              isEditing={isEditing}
-              onClose={handleCancel}
-              onSubmit={handleSubmit}
-              onDelete={handleDelete}
-              formData={formData}
-              setFormData={setFormData}
-              questions={questionsByPage}
-              selectable={false}
+            <Filter className="h-4 w-4" />
+            Bộ lọc
+            {activeTagFilters.length > 0 && (
+              <span className="bg-white text-[var(--qz-violet-dark)] text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                {activeTagFilters.length}
+              </span>
+            )}
+          </button>
+
+          {(activeTagFilters.length > 0 || searchText) && (
+            <button onClick={clearAllFilters} className="qz-btn qz-btn-ghost text-[var(--qz-danger)]">
+              <X className="h-3 w-3" /> Xóa lọc
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ─────────── Filter panel ─────────── */}
+      <AnimatePresence>
+        {isFilterOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -8, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: 'auto' }}
+            exit={{ opacity: 0, y: -8, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <TagFilterComponent
+              availableTags={availableTags}
+              activeTagFilters={activeTagFilters}
+              onTagClick={handleTagFilter}
             />
           </motion.div>
-        </motion.div>)}
+        )}
+      </AnimatePresence>
 
+      {/* ─────────── Test grid ─────────── */}
+      {filteredTests.length === 0 ? (
+        <div className="qz-card flex flex-col items-center py-16 text-center px-6">
+          <div className="w-16 h-16 rounded-full bg-[var(--qz-violet-soft)] flex items-center justify-center mb-4">
+            <Sparkles className="w-8 h-8 text-[var(--qz-violet)]" />
+          </div>
+          <h2 className="qz-h3 mb-2">
+            {searchText || activeTagFilters.length > 0
+              ? 'Không tìm thấy bài thi phù hợp'
+              : 'Chưa có bài thi nào'}
+          </h2>
+          <p className="qz-caption mb-5 max-w-sm">
+            {searchText || activeTagFilters.length > 0
+              ? 'Thử điều chỉnh bộ lọc hoặc xóa từ khoá tìm kiếm.'
+              : 'Tạo bài thi đầu tiên để xây dựng ngân hàng đề.'}
+          </p>
+          {searchText || activeTagFilters.length > 0 ? (
+            <button onClick={clearAllFilters} className="qz-btn qz-btn-secondary">
+              <X size={16} /> Xóa bộ lọc
+            </button>
+          ) : (
+            <button onClick={() => handleOpenModal(null)} className="qz-btn qz-btn-primary">
+              <Plus size={16} /> Tạo bài thi mới
+            </button>
+          )}
+        </div>
+      ) : (
+        <TestCardList
+          tests={filteredTests}
+          onEdit={handleOpenModal}
+          onFilterByTag={handleTagFilter}
+        />
+      )}
+
+      {/* ─────────── Floating CTA (mobile) ─────────── */}
+      <button
+        onClick={() => handleOpenModal(null)}
+        className="md:hidden fixed bottom-6 right-6 z-30 qz-btn qz-btn-primary shadow-[0_8px_24px_rgba(66,85,255,0.35)] py-3 px-5"
+      >
+        <Plus size={18} />
+      </button>
+
+      {/* ─────────── Modal ─────────── */}
+      <AnimatePresence>
+        {isModalOpen && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--qz-ink)]/40 backdrop-blur-sm p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              initial={{ scale: 0.96, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.96, y: 20, opacity: 0 }}
+              transition={{ duration: 0.2, type: 'spring', stiffness: 260, damping: 22 }}
+              className="w-full max-w-2xl"
+            >
+              <ManageTestModal
+                isEditing={isEditing}
+                onClose={handleCancel}
+                onSubmit={handleSubmit}
+                onDelete={handleDelete}
+                formData={formData}
+                setFormData={setFormData}
+                questions={questionsByPage}
+                selectable={false}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

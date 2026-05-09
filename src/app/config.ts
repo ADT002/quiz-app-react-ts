@@ -13,7 +13,7 @@ const API_ENDPOINTS = {
   TESTS: `${API_BASE_URL_MANAGE_TEST}/test-templates`,
   TEST_OF_CLASS: `${API_BASE_URL_MANAGE_TEST}/test-of-class`,
   CLASSES: `${API_BASE_URL_MANAGE_TEST}/class`,
-  GENERATE_CLASS_CODE: `${API_BASE_URL_MANAGE_TEST}/codeclass`,
+  GENERATE_CLASS_CODE: `${API_BASE_URL_MANAGE_TEST}/code-class`,
   QUESTIONS: `${API_BASE_URL_MANAGE_TEST}/questions`,
   TOPIC: `${API_BASE_URL_MANAGE_TEST}/topic`,
   LEVEL: `${API_BASE_URL_MANAGE_TEST}/level`,
@@ -23,19 +23,38 @@ const API_ENDPOINTS = {
 
 
   // ========= STUDENT =========
-  JOIN_CLASS: `${API_BASE_URL_MANAGE_TEST}/class/joinclass`,
+  JOIN_CLASS: `${API_BASE_URL_MANAGE_TEST}/class/join-class`,
 
-  // ========= TEST PROCESS =========
+  // ========= TEST PROCESS (legacy aliases — being migrated) =========
   STUDENT_CLASSES: `${API_BASE_URL_DO_TEST}/class-test/get-class`,
   GET_TESTS_OF_CLASS: `${API_BASE_URL_DO_TEST}/class-test/get-test-of-class`,
-  START_TEST: `${API_BASE_URL_DO_TEST}/test-process/start`,
-  SUBMIT_TEST: `${API_BASE_URL_DO_TEST}/test-process/submit`,
+  /** @deprecated Use EXAM_START. Old route was removed in BE Phase 3. */
+  START_TEST: `${API_BASE_URL_DO_TEST}/exam/start`,
+  /** @deprecated Use EXAM_SUBMIT. */
+  SUBMIT_TEST: `${API_BASE_URL_DO_TEST}/exam/submit`,
+
+  // ========= EXAM (Phase 3 BE refactor) =========
+  EXAM_START: `${API_BASE_URL_DO_TEST}/exam/start`,
+  EXAM_RESUME: `${API_BASE_URL_DO_TEST}/exam/resume`,
+  EXAM_DRAFT: `${API_BASE_URL_DO_TEST}/exam/draft`,
+  EXAM_HEARTBEAT: `${API_BASE_URL_DO_TEST}/exam/heartbeat`,
+  EXAM_SUBMIT: `${API_BASE_URL_DO_TEST}/exam/submit`,
+  EXAM_PRACTICE: `${API_BASE_URL_DO_TEST}/exam/practice`,
 
   // ========= FILE / S3 =========
+  // New file API (file_id-based, S3 keys opaque). See CLAUDE.md F10 + E#15.
+  FILES: `${API_BASE_URL_MANAGE_TEST}/files`,
+  FILE_URL: (fileId: string) =>
+    `${API_BASE_URL_MANAGE_TEST}/files/${encodeURIComponent(fileId)}/url`,
+  FILE_DELETE: (fileId: string) =>
+    `${API_BASE_URL_MANAGE_TEST}/files/${encodeURIComponent(fileId)}`,
 
-  DOWNLOAD: `${API_BASE_URL_MANAGE_TEST}/files/presign-download`,
-  UPLOAD: `${API_BASE_URL_MANAGE_TEST}/files/presign-upload`,
-  ALLFILE: `${API_BASE_URL_MANAGE_TEST}/files/get-files`,
+  /** @deprecated removed in BE refactor — use FILES (POST). */
+  UPLOAD: `${API_BASE_URL_MANAGE_TEST}/files`,
+  /** @deprecated removed in BE refactor — use FILE_URL(fileId). */
+  DOWNLOAD: `${API_BASE_URL_MANAGE_TEST}/files`,
+  /** @deprecated use FILES (GET). */
+  ALLFILE: `${API_BASE_URL_MANAGE_TEST}/files`,
 
   USER: `${API_BASE_URL_MANAGE_TEST}/user`,
 

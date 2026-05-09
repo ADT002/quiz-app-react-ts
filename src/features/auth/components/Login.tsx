@@ -32,10 +32,7 @@ const Login: FC = () => {
         body: JSON.stringify({ type: 'password', email, password }),
       });
       const data = await response.json();
-      console.log(data)
       TokenService.save(data);
-      // navigate('/dashboard');
-      // window.location.reload();
     } catch {
       alert(t('login.googleError'));
     } finally {
@@ -63,12 +60,11 @@ const Login: FC = () => {
       });
 
       const data = await response.json();
-      console.log(data)
       TokenService.save(data);
 
       navigate('/dashboard');
       window.location.reload();
-    } catch (err) {
+    } catch {
       alert(t('login.googleError'));
     } finally {
       setLoading(false);

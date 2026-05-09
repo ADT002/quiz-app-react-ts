@@ -2,13 +2,14 @@
 
 import type React from 'react';
 import { useEffect, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import API_ENDPOINTS from '~/app/config';
 import QuestionComponent, { type Submission } from '~/features/question/components/QuestionComponent';
 import type { Question } from '~/shared/types/question';
 import { apiCallPost } from '~/shared/services/apiCallService';
+import { TfiReload } from 'react-icons/tfi';
 
 interface PracticeStartResponse {
   test_info: { is_test: boolean };
@@ -17,7 +18,6 @@ interface PracticeStartResponse {
 }
 
 const Practice: React.FC = () => {
-  const navigate = useNavigate();
   const location = useLocation();
   const { author_mail, test_id, class_id } = location.state || {};
   const { t } = useTranslation();
@@ -40,8 +40,7 @@ const Practice: React.FC = () => {
       try {
         const res = await apiCallPost<PracticeStartResponse>(
           API_ENDPOINTS.START_TEST,
-          { class_id, test_id, author_mail },
-          navigate,
+          { class_id, test_id, author_mail, test_of_class_id: test_id },
         );
         setQuestions(res.questions ?? []);
       } catch {
@@ -50,7 +49,7 @@ const Practice: React.FC = () => {
         setLoading(false);
       }
     })();
-  }, [test_id, class_id, author_mail, navigate, t]);
+  }, [test_id, class_id, author_mail, t]);
 
   const current = questions[currentIndex];
 
@@ -69,15 +68,31 @@ const Practice: React.FC = () => {
 
   if (error) return <div className="text-red-600 text-center p-6 text-lg">{error}</div>;
 
+  const resetTest = () => {
+    if (!window.confirm(t('doTest.confirm_reset') ?? 'Xoá bài đang làm và tải lại?')) return;
+
+    const questionCache = `questions_${test_id}`;
+    const submissionCache = `quizSubmissions_${test_id}`;
+    localStorage.removeItem(questionCache);
+    localStorage.removeItem(submissionCache);
+    window.location.reload();
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-4">
       <div className="flex justify-between items-center">
         <h1 className="text-xl font-semibold">{t('practice') ?? 'Ôn tập'}</h1>
         <button
+          onClick={resetTest}
+          title="Tải lại bài thi"
+          className="qz-btn qz-btn-ghost text-[var(--qz-slate)]"
+        >
+          <TfiReload size={14} />
+        </button>
+        <button
           onClick={() => setShowSubmission((p) => !p)}
-          className={`px-4 py-2 rounded-full font-semibold ${
-            showSubmission ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-800 hover:bg-gray-400'
-          }`}
+          className={`px-4 py-2 rounded-full font-semibold ${showSubmission ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-800 hover:bg-gray-400'
+            }`}
         >
           {showSubmission ? t('doTest.hide_submission') : t('doTest.show_submission')}
         </button>
@@ -123,13 +138,12 @@ const Practice: React.FC = () => {
             <button
               key={q._id}
               onClick={() => setCurrentIndex(i)}
-              className={`w-10 h-10 rounded-full flex items-center justify-center border ${
-                currentIndex === i
-                  ? 'bg-blue-600 text-white'
-                  : answered
-                    ? 'bg-green-100 border-green-500'
-                    : 'bg-white hover:bg-gray-100'
-              }`}
+              className={`w-10 h-10 rounded-full flex items-center justify-center border ${currentIndex === i
+                ? 'bg-blue-600 text-white'
+                : answered
+                  ? 'bg-green-100 border-green-500'
+                  : 'bg-white hover:bg-gray-100'
+                }`}
             >
               {i + 1}
             </button>

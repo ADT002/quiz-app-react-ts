@@ -1,29 +1,21 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import API_ENDPOINTS from '~/app/config';
-import { apiCallDelete, apiCallGet, apiCallPatch, apiCallPost } from '~/shared/services/apiCallService';
-import { NavigateFunction } from 'react-router-dom';
+import {
+  apiCallDelete,
+  apiCallGet,
+  apiCallPatch,
+  apiCallPost,
+} from '~/shared/services/apiCallService';
 import { TestFormData } from '~/features/test/pages/ManageTestModal';
 
-// --------- Type Definitions ---------
+type Status = 'idle' | 'loading' | 'succeeded' | 'failed';
+
 interface TestState {
   allTestTemplates: TestFormData[];
   allTestOfClass: TestFormData[];
-  status: 'idle' | 'loading' | 'succeeded' | 'failed';
+  templateStatus: Status;
+  testOfClassStatus: Status;
   error: string | null;
-}
-
-interface FetchTemplatesParams {
-  navigate: NavigateFunction;
-}
-
-interface FetchTestOfClassParams {
-  class_id: string;
-  navigate: NavigateFunction;
-}
-
-interface DeleteTestParams {
-  _id: string;
-  navigate: NavigateFunction;
 }
 
 interface ResetTestData {
@@ -31,117 +23,86 @@ interface ResetTestData {
   test_id: string;
 }
 
-interface ResetTestParams {
-  values: ResetTestData;
-  navigate: NavigateFunction;
-}
-
-interface SaveTestParams {
-  values: TestFormData;
-  navigate: NavigateFunction;
-}
-
-interface CreateTestParams {
-  values: TestFormData;
-  navigate: NavigateFunction;
-}
-
 export interface CreateTestOfClassPayload extends TestFormData {
   class_id: string;
 }
 
-interface CreateTestOfClassParams {
-  values: CreateTestOfClassPayload;
-  navigate: NavigateFunction;
-}
+/* ─────────────────────── Test Templates ─────────────────────── */
 
-// --------- Async Thunks: TestTemplate ---------
-
-export const fetchTestTemplates = createAsyncThunk<TestFormData[], FetchTemplatesParams>(
+export const fetchTestTemplates = createAsyncThunk<TestFormData[]>(
   'tests/fetchTestTemplates',
-  async ({ navigate }) => {
-    const response = await apiCallGet(API_ENDPOINTS.TESTS, null, navigate);
+  async () => {
+    const response = await apiCallGet<TestFormData[]>(API_ENDPOINTS.TESTS);
     return Array.isArray(response) ? response : [];
   },
 );
 
-export const createTest = createAsyncThunk<TestFormData, CreateTestParams>(
+export const createTest = createAsyncThunk<TestFormData, { values: TestFormData }>(
   'tests/createTest',
-  async ({ values, navigate }) => {
-    return apiCallPost(API_ENDPOINTS.TESTS, values, navigate);
-  },
+  async ({ values }) => apiCallPost<TestFormData>(API_ENDPOINTS.TESTS, values),
 );
 
-export const saveTest = createAsyncThunk<TestFormData, SaveTestParams>(
+export const saveTest = createAsyncThunk<TestFormData, { values: TestFormData }>(
   'tests/saveTest',
-  async ({ values, navigate }) => {
-    return apiCallPatch(API_ENDPOINTS.TESTS, values, navigate);
-  },
+  async ({ values }) => apiCallPatch<TestFormData>(API_ENDPOINTS.TESTS, values),
 );
 
-export const deleteTest = createAsyncThunk<{ success: boolean }, DeleteTestParams>(
+export const deleteTest = createAsyncThunk<{ success: boolean }, { _id: string }>(
   'tests/deleteTest',
-  async ({ _id, navigate }) => {
-    return apiCallDelete(API_ENDPOINTS.TESTS, { _id }, navigate);
-  },
+  async ({ _id }) => apiCallDelete(API_ENDPOINTS.TESTS, { _id }),
 );
 
-// --------- Async Thunks: TestOfClass ---------
+/* ─────────────────────── Test of Class ─────────────────────── */
 
-export const fetchTestOfClass = createAsyncThunk<TestFormData[], FetchTestOfClassParams>(
+export const fetchTestOfClass = createAsyncThunk<TestFormData[], { class_id: string }>(
   'tests/fetchTestOfClass',
-  async ({ class_id, navigate }) => {
-    const response = await apiCallGet(
+  async ({ class_id }) => {
+    const response = await apiCallGet<TestFormData[]>(
       `${API_ENDPOINTS.TEST_OF_CLASS}?class_id=${class_id}`,
-      null,
-      navigate,
     );
     return Array.isArray(response) ? response : [];
   },
 );
 
-export const createTestOfClass = createAsyncThunk<TestFormData, CreateTestOfClassParams>(
-  'tests/createTestOfClass',
-  async ({ values, navigate }, { rejectWithValue }) => {
-    const res = await apiCallPost<{ _id: string; test: TestFormData }>(
-      API_ENDPOINTS.TEST_OF_CLASS,
-      values,
-      navigate,
-    );
-    if (res?.test) {
-      return { ...res.test, _id: res._id ?? res.test._id };
-    }
-    return rejectWithValue('Unexpected response from server') as never;
-  },
-);
+export const createTestOfClass = createAsyncThunk<
+  TestFormData,
+  { values: CreateTestOfClassPayload }
+>('tests/createTestOfClass', async ({ values }, { rejectWithValue }) => {
+  const res = await apiCallPost<{ _id: string; test: TestFormData }>(
+    API_ENDPOINTS.TEST_OF_CLASS,
+    values,
+  );
+  if (res?.test) {
+    return { ...res.test, _id: res._id ?? res.test._id };
+  }
+  return rejectWithValue('Unexpected response from server') as never;
+});
 
-export const saveTestOfClass = createAsyncThunk<TestFormData, CreateTestOfClassParams>(
+export const saveTestOfClass = createAsyncThunk<TestFormData, { values: CreateTestOfClassPayload }>(
   'tests/saveTestOfClass',
-  async ({ values, navigate }) => {
-    return apiCallPatch(API_ENDPOINTS.TEST_OF_CLASS, values, navigate);
-  },
+  async ({ values }) => apiCallPatch<TestFormData>(API_ENDPOINTS.TEST_OF_CLASS, values),
 );
 
-export const deleteTestOfClass = createAsyncThunk<string, DeleteTestParams>(
+export const deleteTestOfClass = createAsyncThunk<string, { _id: string }>(
   'tests/deleteTestOfClass',
-  async ({ _id, navigate }) => {
-    await apiCallDelete(API_ENDPOINTS.TEST_OF_CLASS, { _id }, navigate);
+  async ({ _id }) => {
+    await apiCallDelete(API_ENDPOINTS.TEST_OF_CLASS, { _id });
     return _id;
   },
 );
 
-export const resetTest = createAsyncThunk<ResetTestData, ResetTestParams>(
+export const resetTest = createAsyncThunk<ResetTestData, { values: ResetTestData }>(
   'tests/resetTest',
-  async ({ values, navigate }) => {
-    return apiCallPost(API_ENDPOINTS.RESET_TEST, values, navigate);
-  },
+  async ({ values }) => apiCallPost<ResetTestData>(API_ENDPOINTS.RESET_TEST, values),
 );
 
-// --------- Slice ---------
+/* ─────────────────────── Slice ─────────────────────── */
+
 const initialState: TestState = {
   allTestTemplates: [],
   allTestOfClass: [],
-  status: 'idle',
+  templateStatus: 'idle',
+  testOfClassStatus: 'idle',
   error: null,
 };
 
@@ -151,65 +112,55 @@ const testSlice = createSlice({
   reducers: {
     clearTestOfClass(state) {
       state.allTestOfClass = [];
+      state.testOfClassStatus = 'idle';
     },
   },
   extraReducers: (builder) => {
     builder
-      // fetchTestTemplates
-      .addCase(fetchTestTemplates.pending, (state) => { state.status = 'loading'; })
+      .addCase(fetchTestTemplates.pending, (state) => {
+        state.templateStatus = 'loading';
+      })
       .addCase(fetchTestTemplates.fulfilled, (state, action: PayloadAction<TestFormData[]>) => {
-        state.status = 'succeeded';
+        state.templateStatus = 'succeeded';
         state.allTestTemplates = action.payload ?? [];
       })
       .addCase(fetchTestTemplates.rejected, (state, action) => {
-        state.status = 'failed';
+        state.templateStatus = 'failed';
         state.error = action.error.message ?? null;
       })
-
-      // createTest (template)
       .addCase(createTest.fulfilled, (state, action: PayloadAction<TestFormData>) => {
         state.allTestTemplates.push(action.payload);
       })
-
-      // saveTest (template)
       .addCase(saveTest.fulfilled, (state, action: PayloadAction<TestFormData>) => {
         const { _id } = action.payload;
         state.allTestTemplates = state.allTestTemplates.map((t) =>
           t._id === _id ? action.payload : t,
         );
       })
-
-      // deleteTest (template)
       .addCase(deleteTest.fulfilled, (state, action) => {
         const { _id } = action.meta.arg;
         state.allTestTemplates = state.allTestTemplates.filter((t) => t._id !== _id);
       })
-
-      // fetchTestOfClass
-      .addCase(fetchTestOfClass.pending, (state) => { state.status = 'loading'; })
+      .addCase(fetchTestOfClass.pending, (state) => {
+        state.testOfClassStatus = 'loading';
+      })
       .addCase(fetchTestOfClass.fulfilled, (state, action: PayloadAction<TestFormData[]>) => {
-        state.status = 'succeeded';
+        state.testOfClassStatus = 'succeeded';
         state.allTestOfClass = action.payload ?? [];
       })
       .addCase(fetchTestOfClass.rejected, (state, action) => {
-        state.status = 'failed';
+        state.testOfClassStatus = 'failed';
         state.error = action.error.message ?? null;
       })
-
-      // createTestOfClass
       .addCase(createTestOfClass.fulfilled, (state, action: PayloadAction<TestFormData>) => {
         state.allTestOfClass.push(action.payload);
       })
-
-      // saveTestOfClass
       .addCase(saveTestOfClass.fulfilled, (state, action: PayloadAction<TestFormData>) => {
         const { _id } = action.payload;
         state.allTestOfClass = state.allTestOfClass.map((t) =>
           t._id === _id ? action.payload : t,
         );
       })
-
-      // deleteTestOfClass
       .addCase(deleteTestOfClass.fulfilled, (state, action: PayloadAction<string>) => {
         state.allTestOfClass = state.allTestOfClass.filter((t) => t._id !== action.payload);
       });

@@ -71,7 +71,7 @@ const QuestionComponent: React.FC<QuestionBaseProps> = ({
   isDone,
   showSubmission,
 }) => {
-  console.log(question)
+  console.log(submission)
   const handleSubmissionChange = useCallback(
     (questionType: string, updatedSubmission: any) => {
       let typedSubmission: Submission;
@@ -134,7 +134,7 @@ const QuestionComponent: React.FC<QuestionBaseProps> = ({
   const renderQuestion = () => {
     const handleSubmissionUpdate = useCallback(
       (updatedSubmission: any) => {
-        console.log(updatedSubmission)
+
         if (question.type) {
           handleSubmissionChange(question.type, updatedSubmission);
         }
@@ -154,7 +154,7 @@ const QuestionComponent: React.FC<QuestionBaseProps> = ({
 
       return null;
     };
-    console.log(question)
+
     switch (question.type) {
       case 'fill_in_the_blank':
         return (

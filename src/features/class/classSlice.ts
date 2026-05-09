@@ -1,16 +1,12 @@
-// src/redux/slices/classSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { NavigateFunction } from 'react-router-dom';
 import API_ENDPOINTS from '~/app/config';
 import { ClassFormData } from '~/features/class/pages/ManageClass';
-import { apiCallDelete, apiCallGet, apiCallPatch, apiCallPost } from '~/shared/services/apiCallService';
-
-// Type definitions
-// export interface ClassFormData {
-//   id: string;
-//   name: string;
-//   [key: string]: any; // Tuỳ theo cấu trúc object class
-// }
+import {
+  apiCallDelete,
+  apiCallGet,
+  apiCallPatch,
+  apiCallPost,
+} from '~/shared/services/apiCallService';
 
 export interface ClassState {
   allClass: ClassFormData[];
@@ -20,12 +16,13 @@ export interface ClassState {
 
 const LINK = API_ENDPOINTS.CLASSES;
 
-export const fetchClasses = createAsyncThunk<ClassFormData[], { navigate: NavigateFunction }>(
-  'classes/fetchClasses',
-  async ({ navigate }) => {
-    const response = await apiCallGet(LINK, navigate);
+/* ─────────────────────── Thunks ─────────────────────── */
 
-    return response as ClassFormData[];
+export const fetchClasses = createAsyncThunk<ClassFormData[]>(
+  'classes/fetchClasses',
+  async () => {
+    const response = await apiCallGet<ClassFormData[]>(LINK);
+    return response ?? [];
   },
 );
 
@@ -39,42 +36,26 @@ export const deleteClass = createAsyncThunk<string, { _id: string }>(
 
 export const saveClass = createAsyncThunk<ClassFormData, { values: Partial<ClassFormData> }>(
   'classes/saveClass',
-  async ({ values }) => {
-    const response = await apiCallPatch(LINK, values);
-    return response as ClassFormData;
-  },
+  async ({ values }) => apiCallPatch<ClassFormData>(LINK, values),
 );
 
 export const createClass = createAsyncThunk<ClassFormData, { values: Partial<ClassFormData> }>(
   'classes/createClass',
-  async ({ values }) => {
-    const response = await apiCallPost(LINK, values);
-    return response as ClassFormData;
-  },
+  async ({ values }) => apiCallPost<ClassFormData>(LINK, values),
 );
 
-// Optional function to generate code (not a thunk)
 export const createCode = async (values: any): Promise<any> => {
-  try {
-    const response = await apiCallPost(LINK + '/codeclass', values);
-    return response;
-  } catch (error) {
-    console.error('Error generating code:', error);
-    throw error;
-  }
+  return apiCallPost(`${LINK}/code-class`, values);
 };
 
+/* ─────────────────────── Slice ─────────────────────── */
 
-
-
-// Initial state
 const initialState: ClassState = {
   allClass: [],
   status: 'idle',
   error: null,
 };
 
-// Slice
 const classSlice = createSlice({
   name: 'classes',
   initialState,
@@ -86,7 +67,6 @@ const classSlice = createSlice({
       })
       .addCase(fetchClasses.fulfilled, (state, action: PayloadAction<ClassFormData[]>) => {
         state.status = 'succeeded';
-
         state.allClass = action.payload ?? [];
       })
       .addCase(fetchClasses.rejected, (state, action) => {
@@ -102,7 +82,7 @@ const classSlice = createSlice({
       .addCase(saveClass.fulfilled, (state, action: PayloadAction<ClassFormData>) => {
         const updated = action.payload;
         state.allClass = state.allClass.map((cls) => (cls._id === updated._id ? updated : cls));
-      })
+      });
   },
 });
 

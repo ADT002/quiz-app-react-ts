@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { memo, useCallback, useMemo, useState } from 'react';
 import { X, Trash2, Check, BookOpenCheck, BookPlus, Info, CalendarClock, Tags, ListChecks, Grid2X2 } from 'lucide-react';
 import TestInfoForm from './components/TestInfoForm';
 import TestTagsToggle from './components/TestTagsToggle';
@@ -9,10 +9,12 @@ import { Topic } from '~/shared/components/common/TopicComponent';
 import { Level } from '~/shared/components/common/LevelComponent';
 import { formatDateTime } from '~/shared/utils/objectId';
 import { Question } from '~/shared/types/question';
+import { useTopics } from '~/features/topic/useTopics';
+import { useLevels } from '~/features/level/useLevels';
 
 export interface MatrixExamData {
-  topic: Topic,
-  level: Level,
+  topic: string,
+  level: string,
   quantity: number
 }
 
@@ -39,9 +41,16 @@ export interface TestFormData {
 }
 
 
-// Props riêng cho SelectableQuestionTable
+/* Tabs definition tĩnh — không tái tạo mỗi render */
+const TABS = [
+  { id: 'test-info', label: 'Test Info', icon: <Info size={18} /> },
+  { id: 'schedule', label: 'Schedule', icon: <CalendarClock size={18} /> },
+  { id: 'tags', label: 'Tags', icon: <Tags size={18} /> },
+  { id: 'questions', label: 'Questions', icon: <ListChecks size={18} /> },
+  { id: 'matrix', label: 'Matrix Exam', icon: <Grid2X2 size={18} /> },
+] as const;
+
 interface SelectableQuestionTableProps {
-  // questions: Record<string, any[]>;
   formData: TestFormData;
   setFormData: React.Dispatch<React.SetStateAction<TestFormData>>;
   selectable?: boolean;
@@ -85,104 +94,61 @@ const ManageTestModal: React.FC<ManageTestModalProps> = ({
   questions,
   selectable
 }) => {
-  const [activeTab, setActiveTab] = useState<string>('test-info');
-  const matrixExam = useMemo<MatrixExamData[]>(() =>
-    Array.isArray(formData.matrix_exam) ? formData.matrix_exam : [],
-    [formData.matrix_exam]
-  );
+  const { map: topicMap } = useTopics();
+  const { map: levelMap } = useLevels();
 
-  const tabs = [
-    {
-      id: 'test-info',
-      label: 'Test Info',
-      icon: <Info size={18} />,
-    },
-    {
-      id: 'schedule',
-      label: 'Schedule',
-      icon: <CalendarClock size={18} />,
-    },
-    {
-      id: 'tags',
-      label: 'Tags',
-      icon: <Tags size={18} />,
-    },
-    {
-      id: 'questions',
-      label: 'Questions',
-      icon: <ListChecks size={18} />,
-    },
-    {
-      id: 'matrix',
-      label: 'Matrix Exam',
-      icon: <Grid2X2 size={18} />,
-    },
-  ];
+  const [activeTab, setActiveTab] = useState<string>('test-info');
+  const matrixExam = useMemo<MatrixExamData[]>(
+    () => (Array.isArray(formData.matrix_exam) ? formData.matrix_exam : []),
+    [formData.matrix_exam],
+  );
 
   const questionMap = useMemo(() => {
     const map = new Map<string, Question>();
-
-    Object.values(questions).flat().forEach(q => {
-      map.set(q._id, q);
-    });
-
+    Object.values(questions).flat().forEach((q) => map.set(q._id, q));
     return map;
   }, [questions]);
 
-  const selectedQuestions = useMemo(() => {
-    console.log('formData.question_ids: ', formData.question_ids);
-    return (formData.question_ids ?? [])
-      .map(id => questionMap.get(id))
-      .filter(Boolean) as Question[];
-  }, [formData.question_ids, questionMap]);
+  const selectedQuestions = useMemo<Question[]>(
+    () => (formData.question_ids ?? []).map((id) => questionMap.get(id)).filter(Boolean) as Question[],
+    [formData.question_ids, questionMap],
+  );
 
 
-  const levels = useMemo<Level[]>(() => {
-    const map = new Map<string, Level>();
+  /** Topic IDs xuất hiện trong matrix → resolve qua topicMap */
+  const topicFilter = useMemo<Topic[]>(() => {
+    const ids = new Set(matrixExam.map((m) => m.topic).filter(Boolean));
+    return Array.from(ids)
+      .map((id) => topicMap[id])
+      .filter(Boolean)
+      .sort((a, b) => a.topic_no - b.topic_no);
+  }, [matrixExam, topicMap]);
 
-    matrixExam.forEach(m => {
-      if (m?.level?._id) {
-        map.set(m.level._id, m.level);
-      }
-    });
-
-    return Array.from(map.values());
-  }, [matrixExam]);
-
-
-  const topics = useMemo<Topic[]>(() => {
-    const map = new Map<string, Topic>();
-
-    matrixExam && matrixExam.forEach(m => {
-      if (m?.topic?._id) {
-        map.set(m.topic._id, m.topic);
-      }
-    });
-
-    return Array.from(map.values());
-  }, [matrixExam]);
-
+  /** Level IDs xuất hiện trong matrix → resolve qua levelMap */
+  const levelFilter = useMemo<Level[]>(() => {
+    const ids = new Set(matrixExam.map((m) => m.level).filter(Boolean));
+    return Array.from(ids)
+      .map((id) => levelMap[id])
+      .filter(Boolean);
+  }, [matrixExam, levelMap]);
 
   const selectedCountMap = useMemo(() => {
     const map: Record<string, number> = {};
-
-    (selectedQuestions ?? []).forEach(q => {
-      if (!q.topic?._id || !q.level?._id) return;
-
-      const key = `${q.topic._id}_${q.level._id}`;
+    (selectedQuestions ?? []).forEach((q) => {
+      console.log(selectedQuestions)
+      if (!q.topic || !q.level) return;
+      const key = `${q.topic}_${q.level}`;
       map[key] = (map[key] || 0) + 1;
     });
-
     return map;
   }, [selectedQuestions]);
 
+  /** matrix_exam giờ chỉ chứa string IDs */
   const requiredMap = useMemo(() => {
     const map: Record<string, number> = {};
-
-    (formData.matrix_exam ?? []).forEach(m => {
-      map[`${m.topic._id}_${m.level._id}`] = m.quantity;
+    (formData.matrix_exam ?? []).forEach((m) => {
+      map[`${m.topic}_${m.level}`] = m.quantity;
     });
-
     return map;
   }, [formData.matrix_exam]);
 
@@ -197,18 +163,29 @@ const ManageTestModal: React.FC<ManageTestModalProps> = ({
   // };
 
 
-  const getRemaining = (topicId: string, levelId: string) => {
-    const key = `${topicId}_${levelId}`;
-    const required = requiredMap[key] ?? 0;
-    const selected = selectedCountMap[key] ?? 0;
+  const getRemaining = useCallback(
+    (topicId: string, levelId: string) => {
+      const key = `${topicId}_${levelId}`;
+      const required = requiredMap[key] ?? 0;
+      const selected = selectedCountMap[key] ?? 0;
+      return Math.max(required - selected, 0);
+    },
+    [requiredMap, selectedCountMap],
+  );
 
-    return Math.max(required - selected, 0);
-  };
+  const isCompleted = useCallback(
+    (topicId: string, levelId: string) => {
+      const key = `${topicId}_${levelId}`;
+      return (selectedCountMap[key] ?? 0) >= (requiredMap[key] ?? 0);
+    },
+    [requiredMap, selectedCountMap],
+  );
 
-  const isCompleted = (topicId: string, levelId: string) => {
-    const key = `${topicId}_${levelId}`;
-    return (selectedCountMap[key] ?? 0) >= (requiredMap[key] ?? 0);
-  };
+  const handleMatrixChange = useCallback(
+    (matrix: MatrixExamData[]) =>
+      setFormData((prev) => ({ ...prev, matrix_exam: matrix })),
+    [setFormData],
+  );
 
 
 
@@ -226,23 +203,19 @@ const ManageTestModal: React.FC<ManageTestModalProps> = ({
 
       {/* Tabs */}
       <div className="flex border-b overflow-x-auto h-[80px]">
-        {tabs.map((tab) => (
+        {TABS.map((tab) => (
           <button
             key={tab.id}
             title={tab.label}
             onClick={() => setActiveTab(tab.id)}
-            className={`px-4 py-3 flex items-center justify-center font-medium text-sm 
-      transition-colors focus:outline-none
-      ${activeTab === tab.id
-                ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
-                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
-              }
-    `}
+            className={`px-4 py-3 flex items-center justify-center font-medium text-sm transition-colors focus:outline-none ${activeTab === tab.id
+              ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+              : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+              }`}
           >
             {tab.icon}
           </button>
         ))}
-
       </div>
 
       {/* Content */}
@@ -264,7 +237,7 @@ const ManageTestModal: React.FC<ManageTestModalProps> = ({
                   <thead>
                     <tr className="bg-gray-100">
                       <th className="border px-4 py-2 text-left">Topic \\ Level</th>
-                      {levels.map(level => (
+                      {levelFilter.map((level) => (
                         <th key={level._id} className="border px-4 py-2 text-center">
                           {level.level_name}
                         </th>
@@ -273,13 +246,11 @@ const ManageTestModal: React.FC<ManageTestModalProps> = ({
                   </thead>
 
                   <tbody>
-                    {topics && topics.map(topic => (
+                    {topicFilter.map((topic) => (
                       <tr key={topic._id}>
-                        <td className="border px-4 py-2 font-medium">
-                          {topic.topic_name}
-                        </td>
+                        <td className="border px-4 py-2 font-medium">{topic.topic_name}</td>
 
-                        {levels.map(level => {
+                        {levelFilter.map((level) => {
                           const remain = getRemaining(topic._id, level._id);
                           const done = isCompleted(topic._id, level._id);
 
@@ -319,15 +290,7 @@ const ManageTestModal: React.FC<ManageTestModalProps> = ({
           </>
         )}
         {activeTab === 'matrix' && (
-          <MatrixExam
-            data={formData.matrix_exam}
-            onChange={matrix => {
-              setFormData(prev => ({
-                ...prev,
-                matrix_exam: matrix,
-              }));
-            }}
-          />
+          <MatrixExam data={formData.matrix_exam ?? []} onChange={handleMatrixChange} />
         )}
 
       </div>
@@ -390,4 +353,4 @@ const ManageTestModal: React.FC<ManageTestModalProps> = ({
   );
 };
 
-export default ManageTestModal;
+export default memo(ManageTestModal);

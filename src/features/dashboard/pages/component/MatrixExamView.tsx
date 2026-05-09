@@ -1,36 +1,37 @@
-import { useMemo } from 'react';
-import { Level } from '~/shared/components/common/LevelComponent';
-import { Topic } from '~/shared/components/common/TopicComponent';
-import { MatrixExamData } from '~/features/test/pages/ManageTestModal';
-
-/* ================= PROPS ================= */
+import { memo, useMemo } from 'react';
+import { useTopics } from '~/features/topic/useTopics';
+import { useLevels } from '~/features/level/useLevels';
+import type { Topic } from '~/features/topic/topicSlice';
+import type { Level } from '~/features/level/levelSlice';
+import type { MatrixExamData } from '~/features/test/pages/ManageTestModal';
 
 interface MatrixExamViewProps {
     data: MatrixExamData[];
 }
 
-/* ================= COMPONENT ================= */
+function MatrixExamView({ data }: MatrixExamViewProps) {
+    const { map: topicMap } = useTopics();
+    const { map: levelMap } = useLevels();
 
-export default function MatrixExamView({ data }: MatrixExamViewProps) {
-    if (!data)
-        return
-    /* ===== GROUP TOPIC & LEVEL ===== */
     const topics = useMemo<Topic[]>(() => {
-        const map = new Map<string, Topic>();
-        data.forEach(item => map.set(item.topic._id, item.topic));
-        return Array.from(map.values()).sort((a, b) => a.topic_no - b.topic_no);
-    }, [data]);
+        const ids = new Set(data.map((m) => m.topic).filter(Boolean));
+        return Array.from(ids)
+            .map((id) => topicMap[id])
+            .filter(Boolean)
+            .sort((a, b) => a.topic_no - b.topic_no);
+    }, [data, topicMap]);
 
     const levels = useMemo<Level[]>(() => {
-        const map = new Map<string, Level>();
-        data.forEach(item => map.set(item.level._id, item.level));
-        return Array.from(map.values());
-    }, [data]);
+        const ids = new Set(data.map((m) => m.level).filter(Boolean));
+        return Array.from(ids)
+            .map((id) => levelMap[id])
+            .filter(Boolean);
+    }, [data, levelMap]);
 
     const matrix = useMemo(() => {
         const m: Record<string, MatrixExamData> = {};
-        data.forEach(item => {
-            m[`${item.topic._id}_${item.level._id}`] = item;
+        data.forEach((item) => {
+            m[`${item.topic}_${item.level}`] = item;
         });
         return m;
     }, [data]);
@@ -43,37 +44,25 @@ export default function MatrixExamView({ data }: MatrixExamViewProps) {
         );
     }
 
-    /* ================= UI ================= */
-
     return (
         <div className="overflow-x-auto border rounded-xl bg-white shadow">
             <table className="min-w-full border-collapse text-sm">
                 <thead>
                     <tr className="bg-gray-100">
-                        <th className="border px-4 py-2 text-left">
-                            Topic \\ Level
-                        </th>
-                        {levels.map(level => (
-                            <th
-                                key={level._id}
-                                className="border px-4 py-2 text-center"
-                            >
+                        <th className="border px-4 py-2 text-left">Topic \\ Level</th>
+                        {levels.map((level) => (
+                            <th key={level._id} className="border px-4 py-2 text-center">
                                 {level.level_name}
                             </th>
                         ))}
                     </tr>
                 </thead>
-
                 <tbody>
-                    {topics.map(topic => (
+                    {topics.map((topic) => (
                         <tr key={topic._id}>
-                            <td className="border px-4 py-2 font-medium">
-                                {topic.topic_name}
-                            </td>
-
-                            {levels.map(level => {
+                            <td className="border px-4 py-2 font-medium">{topic.topic_name}</td>
+                            {levels.map((level) => {
                                 const cell = matrix[`${topic._id}_${level._id}`];
-
                                 return (
                                     <td
                                         key={`${topic._id}_${level._id}`}
@@ -96,3 +85,5 @@ export default function MatrixExamView({ data }: MatrixExamViewProps) {
         </div>
     );
 }
+
+export default memo(MatrixExamView);

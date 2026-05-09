@@ -18,7 +18,7 @@ const UserSubmitComponent: React.FC<UserSubmitProps> = ({
     userSubmits,
     onClose,
 }) => {
-    console.log(classID, testID)
+
 
     const apiDownloadPDF = async (
         url: string,
@@ -53,7 +53,7 @@ const UserSubmitComponent: React.FC<UserSubmitProps> = ({
         classID: string,
         testID: string
     ) => {
-        console.log(classID, testID)
+
         try {
             const { blob, filename } = await apiDownloadPDF(
                 API_ENDPOINTS.EXPORT_SUBMISSION_PDF,

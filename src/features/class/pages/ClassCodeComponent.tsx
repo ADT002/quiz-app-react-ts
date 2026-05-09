@@ -2,20 +2,36 @@ import { CircleFadingPlus, QrCode } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useCookies } from 'react-cookie';
 import { createCode } from '~/features/class/classSlice';
-import { getCookieValue, setCookieWithExpiry, isCookieExpired } from '~/shared/services/cookieHelper';
+import { getCookieValue, isCookieExpired } from '~/shared/services/cookieHelper';
+
+type CodeEntryStored = {
+  code: string;
+  expiresAt: string; // ISO string
+};
 
 interface ClassCodeComponentProps {
   id: string;
   test_id: string[];
 }
 
+
 interface CodeEntry {
   code: string;
   expiresAt: Date;
 }
 
+
 const ClassCodeComponent: React.FC<ClassCodeComponentProps> = ({ id, test_id }) => {
+  console.log(id)
   const [cookies, setCookie] = useCookies(['classIds']);
+  console.log(cookies)
+  const setClassIdsCookie = useCallback(
+    (value: unknown) => {
+      setCookie('classIds', value, { path: '/' });
+    },
+    [setCookie],
+  );
+
   const [classCode, setClassCode] = useState<string | null>(null);
   const [expiryMinutes, setExpiryMinutes] = useState<number>(5);
   const [expiresAt, setExpiresAt] = useState<Date | null>(null);
@@ -25,9 +41,8 @@ const ClassCodeComponent: React.FC<ClassCodeComponentProps> = ({ id, test_id }) 
   const handleGenerateCode = useCallback(async () => {
     try {
       const response = await createCode({
-        id,
+        class_id: id,
         minute: expiryMinutes,
-        test_id,
       });
 
       const expirationTime = getExpirationDate(expiryMinutes);
@@ -46,8 +61,17 @@ const ClassCodeComponent: React.FC<ClassCodeComponentProps> = ({ id, test_id }) 
 
   const updateCookieWithCode = useCallback(
     (entry: CodeEntry) => {
-      const newCodeEntry = { [id]: entry };
-      const classIds: Record<string, CodeEntry>[] = getCookieValue(cookies, 'classIds') || [];
+      const storedEntry: CodeEntryStored = {
+        code: entry.code,
+        expiresAt: entry.expiresAt.toISOString(),
+      };
+
+      const newCodeEntry: Record<string, CodeEntryStored> = { [id]: storedEntry };
+      const classIds: Record<string, CodeEntryStored>[] =
+        (getCookieValue(cookies, 'classIds') as unknown as Record<string, CodeEntryStored>[] | null) || [];
+
+
+
 
       const existingIndex = classIds.findIndex((item) => Object.keys(item)[0] === id);
 
@@ -57,9 +81,11 @@ const ClassCodeComponent: React.FC<ClassCodeComponentProps> = ({ id, test_id }) 
         classIds.push(newCodeEntry);
       }
 
-      setCookieWithExpiry(setCookie, 'classIds', classIds);
+      setClassIdsCookie(classIds);
+
     },
-    [id, cookies, setCookie],
+    [id, cookies, setCookie, setClassIdsCookie],
+
   );
 
   const generateCodeAndSave = useCallback(async () => {
@@ -68,8 +94,11 @@ const ClassCodeComponent: React.FC<ClassCodeComponentProps> = ({ id, test_id }) 
   }, [handleGenerateCode, updateCookieWithCode]);
 
   useEffect(() => {
-    const classIds: Record<string, { code: string; expiresAt: string }>[] =
-      getCookieValue(cookies, 'classIds') || [];
+    const classIds: Record<string, CodeEntryStored>[] =
+      getCookieValue(cookies, 'classIds') as Record<string, CodeEntryStored>[] | null || [];
+
+
+
 
     const currentEntry = classIds.find((item) => Object.keys(item)[0] === id);
 
@@ -77,10 +106,12 @@ const ClassCodeComponent: React.FC<ClassCodeComponentProps> = ({ id, test_id }) 
       const { code, expiresAt } = currentEntry[id];
       const expireDate = new Date(expiresAt);
 
+
       if (isCookieExpired(expireDate)) {
         alert('Class code has expired. Please generate a new one.');
         const updatedClassIds = classIds.filter((item) => Object.keys(item)[0] !== id);
-        setCookieWithExpiry(setCookie, 'classIds', updatedClassIds);
+        setClassIdsCookie(updatedClassIds);
+
       } else {
         setClassCode(code);
         setExpiresAt(expireDate);

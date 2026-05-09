@@ -9,6 +9,10 @@ import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from '~/app/store';
 
+// React Query (server state for new features per CLAUDE.md)
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '~/app/queryClient';
+
 // i18n (Translation)
 import './i18n';
 
@@ -23,7 +27,9 @@ root.render(
   <CookiesProvider defaultSetOptions={{ path: '/' }}>
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
-        <App />
+        <QueryClientProvider client={queryClient}>
+          <App />
+        </QueryClientProvider>
       </PersistGate>
     </Provider>
   </CookiesProvider>,

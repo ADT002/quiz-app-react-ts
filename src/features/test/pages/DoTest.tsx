@@ -11,6 +11,7 @@ import QuestionComponent, { type Submission } from '~/features/question/componen
 import type { StudentAnswer, SubmitResponse, TestSubmission, QuestionResult } from '~/shared/types/quiz';
 import type { Question } from '~/shared/types/question';
 import { apiCallPost } from '~/shared/services/apiCallService';
+import { FaRssSquare } from 'react-icons/fa';
 
 interface CountdownTime {
   hours: number;
@@ -87,16 +88,17 @@ function toStudentAnswers(subs: Record<string, Submission>): StudentAnswer[] {
 }
 
 const DoTest: React.FC = () => {
-  const navigate = useNavigate();
   const location = useLocation();
   const { author_mail, test_id, class_id } = location.state || {};
   const { t } = useTranslation();
+
 
   const questionCache = `questions_${test_id}`;
   const submissionCache = `quizSubmissions_${test_id}`;
 
   const countdownTime: CountdownTime = { hours: 0, minutes: 0, seconds: 0 };
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [submissionId, setSubmissionId] = useState()
   const [score, setScore] = useState(0);
   const [maxScore, setMaxScore] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -135,10 +137,12 @@ const DoTest: React.FC = () => {
       author_mail: author_mail as string,
       class_id: class_id as string,
       test_id: test_id as string,
+      submission_id: submissionId ?? '',
       answers: toStudentAnswers(submissions),
       user_id: 'a',
     };
-    return apiCallPost<SubmitResponse>(API_ENDPOINTS.SUBMIT_TEST, payload, navigate);
+
+    return apiCallPost<SubmitResponse>(API_ENDPOINTS.SUBMIT_TEST, payload);
   };
 
   const handleSendTest = async () => {
@@ -162,8 +166,8 @@ const DoTest: React.FC = () => {
   useEffect(() => {
     const initSession = (_testInfo: InfoTest, qs: Question[], submission?: any) => {
       setQuestions(qs || []);
-
-      if (submission?.end_time) {
+      if (submission?.status == 'submitted') {
+        setSubmissionId(submission._id)
         setIsDone(true);
         setScore(submission.score);
         setMaxScore(submission.max_score ?? 0);
@@ -188,17 +192,23 @@ const DoTest: React.FC = () => {
         }
         const res = await apiCallPost<any>(
           API_ENDPOINTS.START_TEST,
-          { class_id, author_mail, test_id },
-          navigate,
+          { class_id, author_mail, test_of_class_id: test_id },
         );
+        console.log(res)
         localStorage.setItem(
           questionCache,
           JSON.stringify({
             test_info: res.test_info,
             questions: res.questions,
-            submission: res.submission,
+
+            mode: res.mode,
+            server_now: res.server_now,
+
+            submission_id: res.submission_id,
+            submission: res.submission
           }),
         );
+        setSubmissionId(res.submission_id)
         initSession(res.test_info, res.questions, res.submission);
       } catch {
         setError(t('doTest.load_error'));
@@ -298,7 +308,13 @@ const DoTest: React.FC = () => {
           </div>
         </div>
       )}
-
+      <button
+        onClick={resetTest}
+        title="Tải lại bài thi"
+        className="qz-btn qz-btn-ghost text-[var(--qz-slate)]"
+      >
+        <TfiReload size={14} />
+      </button>
       {/* ─── Question content ─── */}
       {currentQuestion && (
         <div className="qz-card p-6">
@@ -306,13 +322,7 @@ const DoTest: React.FC = () => {
             <span className="qz-pill qz-pill-open">
               {t('question')} {currentQuestionIndex + 1}/{questions.length}
             </span>
-            <button
-              onClick={resetTest}
-              title="Tải lại bài thi"
-              className="qz-btn qz-btn-ghost text-[var(--qz-slate)]"
-            >
-              <TfiReload size={14} />
-            </button>
+
           </div>
 
           <QuestionComponent
@@ -355,13 +365,12 @@ const DoTest: React.FC = () => {
               <button
                 key={q._id}
                 onClick={() => setCurrentQuestionIndex(i)}
-                className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold transition ${
-                  isCurrent
-                    ? 'bg-[var(--qz-violet)] text-white shadow-[var(--qz-shadow-focus)]'
-                    : hasSubmission
+                className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold transition ${isCurrent
+                  ? 'bg-[var(--qz-violet)] text-white shadow-[var(--qz-shadow-focus)]'
+                  : hasSubmission
                     ? 'bg-[var(--qz-violet-soft)] text-[var(--qz-violet-dark)] border border-[var(--qz-violet)]/30'
                     : 'bg-white border border-[var(--qz-border)] text-[var(--qz-slate)] hover:border-[var(--qz-violet)]/50'
-                }`}
+                  }`}
               >
                 {i + 1}
               </button>

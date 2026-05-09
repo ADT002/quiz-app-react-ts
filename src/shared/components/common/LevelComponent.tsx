@@ -1,230 +1,165 @@
 'use client';
 
+import { useState } from 'react';
 import { Check, Layers, Pencil, Plus, Trash2, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import API_ENDPOINTS from '~/app/config';
-import {
-    apiCallGet,
-    apiCallPost,
-    apiCallPatch,
-    apiCallDelete,
-} from '~/shared/services/apiCallService';
+import { useLevels } from '~/features/level/useLevels';
+import type { Level } from '~/features/level/levelSlice';
+import CollapsibleSection from '../ui/CollapsibleSection';
 
-/* ================= TYPES ================= */
-
-export interface Level {
-    _id: string;
-    user_id?: string;
-    level_name: string;
-}
+export type { Level };
 
 interface LevelManagementProps {
-    level: Level | null;                 // level đang được chọn
-    onSelect: (level: Level) => void;    // chọn level
-    onDeselect: () => void;              // bỏ chọn
+  level: string | null;
+  onSelect: (level: Level) => void;
+  onDeselect: () => void;
 }
 
-/* ================= COMPONENT ================= */
+export default function LevelManagement({ level, onSelect, onDeselect }: LevelManagementProps) {
+  const { items, map, create, update, remove } = useLevels();
 
-export default function LevelManagement({
-    level,
-    onSelect,
-    onDeselect,
-}: LevelManagementProps) {
-    const navigate = useNavigate();
+  const [newLevel, setNewLevel] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
 
-    const [levels, setLevels] = useState<Level[]>([]);
-    const [newLevel, setNewLevel] = useState('');
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [editingName, setEditingName] = useState('');
+  const handleAdd = async () => {
+    if (!newLevel.trim()) return;
+    await create(newLevel);
+    setNewLevel('');
+  };
 
-    /* ================= LOAD ================= */
+  const handleUpdate = async (id: string) => {
+    if (!editingName.trim()) return;
+    await update(id, editingName);
+    setEditingId(null);
+    setEditingName('');
+  };
 
-    useEffect(() => {
-        fetchLevels();
-    }, []);
+  const handleDelete = async (id: string) => {
+    if (!confirm('Bạn có chắc muốn xoá cấp độ này?')) return;
+    await remove(id);
+    if (level === id) onDeselect();
+  };
 
-    const fetchLevels = async () => {
-        const data = await apiCallGet<Level[]>(API_ENDPOINTS.LEVEL, navigate);
-        setLevels(data);
-    };
+  return (
+    <CollapsibleSection title="Mức độ" subtitle={map[level ?? '']?.level_name ?? ''}>
+      <div className="qz-card-flat p-4 space-y-4">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-[var(--qz-ink)] font-semibold text-sm">
+            <Layers size={16} />
+            <span>{items.length} cấp độ</span>
+          </div>
 
-    /* ================= ADD ================= */
-
-    const handleAdd = async () => {
-        if (!newLevel.trim()) return;
-
-        const created = await apiCallPost<Level>(
-            API_ENDPOINTS.LEVEL,
-            { level_name: newLevel },
-            navigate,
-        );
-
-        setLevels(prev => [...prev ?? [], created]);
-        setNewLevel('');
-    };
-
-    /* ================= UPDATE ================= */
-
-    const handleUpdate = async (id: string) => {
-        if (!editingName.trim()) return;
-
-        const updated = await apiCallPatch<Level>(
-            API_ENDPOINTS.LEVEL,
-            { id: id, level_name: editingName },
-            navigate,
-        );
-
-        setLevels(prev => prev.map(l => (l._id === id ? updated : l)));
-        setEditingId(null);
-        setEditingName('');
-    };
-
-    /* ================= DELETE ================= */
-
-    const handleDelete = async (id: string) => {
-        if (!confirm('Bạn có chắc muốn xoá level này?')) return;
-
-        await apiCallDelete(API_ENDPOINTS.LEVEL, { _id: id }, navigate);
-
-        setLevels(prev => prev.filter(l => l._id !== id));
-
-        // nếu xoá level đang chọn → bỏ chọn
-        if (level?._id === id) {
-            onDeselect();
-        }
-    };
-
-    /* ================= UI ================= */
-
-    return (
-        <div className="w-full">
-            {levels && levels.length === 0 ?
-                (<div className="text-sm text-gray-400 text-center py-4">
-                    Chưa có level
-                </div>) : (<div className="bg-white rounded-lg border p-4 space-y-4">
-
-                    {/* ===== HEADER ===== */}
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-gray-700 font-medium">
-                            <Layers size={18} />
-                            <span>{levels && levels.length}</span>
-                        </div>
-
-                        {level && (
-                            <button
-                                type="button"
-                                onClick={onDeselect}
-                                className="flex items-center gap-1 text-sm text-green-600 bg-green-50 px-2 py-1 rounded"
-                            >
-                                <Check size={14} />
-                                {level.level_name}
-                                <X size={14} />
-                            </button>
-                        )}
-                    </div>
-
-                    {/* ===== ADD ===== */}
-                    <div className="flex gap-2">
-                        <input
-                            className="
-            flex-1 rounded-md border px-3 py-2 text-sm
-            focus:outline-none focus:ring-2 focus:ring-blue-500
-          "
-                            placeholder="Level mới..."
-                            value={newLevel}
-                            onChange={e => setNewLevel(e.target.value)}
-                        />
-                        <button
-                            type="button"
-                            onClick={handleAdd}
-                            className="bg-blue-600 text-white p-2 rounded-md hover:bg-blue-700"
-                        >
-                            <Plus size={18} />
-                        </button>
-                    </div>
-
-                    {/* ===== LIST ===== */}
-                    <ul className="space-y-2">
-                        {levels && levels.map(l => {
-                            const isSelected = level?._id === l._id;
-
-                            return (
-                                <li
-                                    key={l._id}
-                                    className={`
-                flex items-center justify-between
-                border rounded-md px-3 py-2
-                ${isSelected ? 'bg-green-50 border-green-400' : 'hover:bg-gray-50'}
-              `}
-                                >
-                                    {editingId === l._id ? (
-                                        <div className="flex gap-2 w-full">
-                                            <input
-                                                className="flex-1 border rounded px-2 py-1 text-sm"
-                                                value={editingName}
-                                                onChange={e => setEditingName(e.target.value)}
-                                            />
-                                            <button
-                                                onClick={() => handleUpdate(l._id)}
-                                                className="text-green-600"
-                                            >
-                                                <Check size={18} />
-                                            </button>
-                                            <button
-                                                onClick={() => setEditingId(null)}
-                                                className="text-gray-400"
-                                            >
-                                                <X size={18} />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <span className="text-sm font-medium truncate">
-                                                {l.level_name}
-                                            </span>
-
-                                            <div className="flex gap-2">
-                                                <button
-                                                    disabled={isSelected}
-                                                    onClick={() => onSelect(l)}
-                                                    className={`
-                        p-1.5 rounded
-                        ${isSelected
-                                                            ? 'text-green-600'
-                                                            : 'text-gray-500 hover:text-green-600'}
-                      `}
-                                                >
-                                                    <Check size={18} />
-                                                </button>
-
-                                                <button
-                                                    onClick={() => {
-                                                        setEditingId(l._id);
-                                                        setEditingName(l.level_name);
-                                                    }}
-                                                    className="p-1.5 text-yellow-500 hover:text-yellow-600"
-                                                >
-                                                    <Pencil size={16} />
-                                                </button>
-
-                                                <button
-                                                    onClick={() => handleDelete(l._id)}
-                                                    className="p-1.5 text-red-500 hover:text-red-600"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
-                                        </>
-                                    )}
-                                </li>
-                            );
-                        })}
-                    </ul>
-
-                </div>)}
+          {level && map[level] && (
+            <button
+              type="button"
+              onClick={onDeselect}
+              className="qz-pill qz-pill-success"
+            >
+              <Check size={12} />
+              {map[level].level_name}
+              <X size={12} />
+            </button>
+          )}
         </div>
-    );
 
+        {/* Add */}
+        <div className="flex gap-2">
+          <input
+            className="qz-input flex-1"
+            placeholder="Thêm cấp độ mới..."
+            value={newLevel}
+            onChange={(e) => setNewLevel(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+          />
+          <button
+            type="button"
+            onClick={handleAdd}
+            className="bg-[var(--qz-violet)] text-white p-2 rounded-md hover:bg-[var(--qz-violet-dark)]"
+          >
+            <Plus size={18} />
+          </button>
+        </div>
+
+        {/* List */}
+        {items.length === 0 ? (
+          <div className="text-sm text-[var(--qz-slate-light)] text-center py-4">
+            Chưa có cấp độ
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {items.map((l) => {
+              const isSelected = level === l._id;
+              return (
+                <li
+                  key={l._id}
+                  className={`flex items-center justify-between border rounded-md px-3 py-2 ${
+                    isSelected
+                      ? 'bg-[#dcfce7] border-[var(--qz-success)]'
+                      : 'border-[var(--qz-border)] hover:bg-[var(--qz-bg)]'
+                  }`}
+                >
+                  {editingId === l._id ? (
+                    <div className="flex gap-2 w-full">
+                      <input
+                        className="qz-input flex-1"
+                        value={editingName}
+                        onChange={(e) => setEditingName(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleUpdate(l._id)}
+                      />
+                      <button
+                        onClick={() => handleUpdate(l._id)}
+                        className="text-[var(--qz-success)] px-2"
+                      >
+                        <Check size={16} />
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="text-[var(--qz-slate-light)] px-2"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="text-sm font-medium truncate">{l.level_name}</span>
+
+                      <div className="flex gap-1">
+                        <button
+                          disabled={isSelected}
+                          onClick={() => onSelect(l)}
+                          className={`p-1.5 rounded ${
+                            isSelected
+                              ? 'text-[var(--qz-success)]'
+                              : 'text-[var(--qz-slate)] hover:text-[var(--qz-success)]'
+                          }`}
+                        >
+                          <Check size={16} />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingId(l._id);
+                            setEditingName(l.level_name);
+                          }}
+                          className="p-1.5 text-[var(--qz-warn)] hover:opacity-80"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(l._id)}
+                          className="p-1.5 text-[var(--qz-danger)] hover:opacity-80"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </CollapsibleSection>
+  );
 }

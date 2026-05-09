@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import path from 'path';
 import tailwindcss from '@tailwindcss/vite';
@@ -5,8 +6,13 @@ import tailwindcss from '@tailwindcss/vite';
 export default defineConfig({
   resolve: {
     alias: {
-      '~': path.resolve(__dirname, 'src'), // Đảm bảo alias trỏ đến thư mục 'src'
+      '~': path.resolve(__dirname, 'src'),
     },
   },
   plugins: [tailwindcss()],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.ts'],
+  },
 });

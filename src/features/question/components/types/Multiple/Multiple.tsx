@@ -17,7 +17,6 @@ interface Props {
 
 const MultipleChoiceQuestion: React.FC<Props> = ({
   question,
-  author,
   onSubmissionChange,
   submission,
   isDone,
@@ -63,12 +62,12 @@ const MultipleChoiceQuestion: React.FC<Props> = ({
           const checked = isChecked(option);
           const isCorrect = option.is_correct;
 
-          const highlight =
-            showSubmission && isCorrect
-              ? 'border-green-500 bg-green-50'
-              : !showSubmission && checked
-                ? 'border-blue-500 bg-blue-50'
-                : 'border-gray-300 hover:border-blue-500';
+          const highlight = ''
+          // showSubmission && isCorrect
+          //   ? 'border-green-500 bg-green-50'
+          //   : !showSubmission && checked
+          //     ? 'border-blue-500 bg-blue-50'
+          //     : 'border-gray-300 hover:border-blue-500';
 
           return (
             <label

@@ -91,7 +91,7 @@ const QuestionModal: React.FC<QuestionModalProps> = ({
   handleSubmit,
   handleCancel,
 }) => {
-  console.log(formData)
+
   const isMobile = useMediaQuery({ maxWidth: 767 });
   const isTablet = useMediaQuery({ minWidth: 768, maxWidth: 1023 });
   const [activeTab, setActiveTab] = React.useState<QuestionTab>('content');
@@ -134,7 +134,7 @@ const QuestionModal: React.FC<QuestionModalProps> = ({
   const handleSelectLevel = useCallback((level: Level) => {
     setFormData(prev => ({
       ...prev,
-      level,
+      level: level._id,
     }));
   }, [setFormData]);
 
@@ -148,7 +148,7 @@ const QuestionModal: React.FC<QuestionModalProps> = ({
   const handleSelectTopic = useCallback((topic: Topic) => {
     setFormData(prev => ({
       ...prev,
-      topic,
+      topic: topic._id,
     }));
   }, [setFormData]);
 
@@ -343,21 +343,18 @@ const QuestionModal: React.FC<QuestionModalProps> = ({
           {/* TAB: CONFIG */}
           {activeTab === 'config' && (
             <div className="space-y-4">
-              <CollapsibleSection title="Chủ đề" subtitle={formData.topic?.topic_name ?? ""}>
-                <TopicManagement
-                  topic={formData.topic ?? null}
-                  onSelect={handleSelectTopic}
-                  onDeselect={handleDeselectTopic}
-                />
-              </CollapsibleSection>
 
-              <CollapsibleSection title="Mức độ" subtitle={formData.level?.level_name ?? ""}>
-                <LevelManagement
-                  level={formData.level ?? null}
-                  onSelect={handleSelectLevel}
-                  onDeselect={handleDeselectLevel}
-                />
-              </CollapsibleSection>
+              <TopicManagement
+                topic={formData.topic ?? null}
+                onSelect={handleSelectTopic}
+                onDeselect={handleDeselectTopic}
+              />
+
+              <LevelManagement
+                level={formData.level ?? null}
+                onSelect={handleSelectLevel}
+                onDeselect={handleDeselectLevel}
+              />
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>

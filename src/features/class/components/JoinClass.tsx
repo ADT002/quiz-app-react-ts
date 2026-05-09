@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import API_ENDPOINTS from '~/app/config';
 import { apiCallPost } from '~/shared/services/apiCallService';
-import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
@@ -21,8 +20,6 @@ const JoinClass: React.FC<JoinClassProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const navigate = useNavigate();
-
   if (!isOpen) return null;
 
   const handleJoinClass = async () => {
@@ -36,11 +33,7 @@ const JoinClass: React.FC<JoinClassProps> = ({
       setError('');
       setSuccess('');
 
-      await apiCallPost(
-        API_ENDPOINTS.JOIN_CLASS,
-        { id: classCode.trim() },
-        navigate,
-      );
+      await apiCallPost(API_ENDPOINTS.JOIN_CLASS, { key: classCode.trim() });
 
       setSuccess(t('joinClass.success'));
       setClassCode('');

@@ -23,7 +23,7 @@ const SingleChoiceQuestion: React.FC<Props> = ({
   isDone,
   showSubmission,
 }) => {
-  console.log(question)
+
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   useEffect(() => {
     if (submission) {
@@ -38,7 +38,7 @@ const SingleChoiceQuestion: React.FC<Props> = ({
     setSelectedChoice(optionId);
 
     const options = [{ id: optionId }];
-    console.log(optionId, options, question)
+
     onSubmissionChange({
       submission: optionId,
       options: options,

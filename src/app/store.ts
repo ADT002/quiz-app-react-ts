@@ -14,12 +14,10 @@ import storage from 'redux-persist/lib/storage';
 import classReducer from '~/features/class/classSlice';
 import testReducer from '~/features/test/testSlice';
 import questionReducer from '~/features/question/questionSlice';
+import topicReducer from '~/features/topic/topicSlice';
+import levelReducer from '~/features/level/levelSlice';
 
-const questionPersistConfig = {
-  key: 'questions',
-  storage,
-};
-
+const questionPersistConfig = { key: 'questions', storage };
 const persistedQuestionReducer = persistReducer(questionPersistConfig, questionReducer);
 
 export const store = configureStore({
@@ -27,6 +25,8 @@ export const store = configureStore({
     classes: classReducer,
     tests: testReducer,
     questions: persistedQuestionReducer,
+    topics: topicReducer,
+    levels: levelReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

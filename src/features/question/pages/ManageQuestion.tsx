@@ -1,18 +1,31 @@
-import React, { useEffect, useCallback } from 'react';
+import React from 'react';
+import { Library } from 'lucide-react';
 import QuestionTable from './QuestionComponent/QuestionTable';
 
 const ManageQuestion: React.FC = () => {
-
-
   return (
-    <div className="max-w-7xl mx-auto p-4">
-      <div className="bg-white shadow-md rounded-lg p-6">
-        <h2 className="text-3xl font-bold text-center text-gray-900 mb-4 border-b-4 border-blue-600 pb-2">
-          Manage Questions
-        </h2>
-        {/* <button onClick={loadMore}>LOAD MORE</button> */}
-        <QuestionTable />
-      </div>
+    <div className="space-y-6 animate-fadeIn">
+      {/* ─────────── Hero ─────────── */}
+      <header className="qz-card overflow-hidden">
+        <div className="relative bg-gradient-to-r from-[var(--qz-violet)] to-[var(--qz-violet-dark)] p-6 md:p-8">
+          <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full bg-white/10" />
+          <div className="absolute top-1/2 right-32 w-12 h-12 rounded-full bg-[#EEAAFF]/40 hidden md:block" />
+
+          <div className="relative">
+            <div className="flex items-center gap-2 text-white/80 text-sm mb-2">
+              <Library size={16} />
+              Ngân hàng câu hỏi
+            </div>
+            <h1 className="qz-h1 text-white">Quản lý câu hỏi</h1>
+            <p className="text-white/80 text-sm mt-1">
+              5 loại câu hỏi: trắc nghiệm 1 đáp án, nhiều đáp án, điền chỗ trống, sắp xếp, nối cột
+            </p>
+          </div>
+        </div>
+      </header>
+
+      {/* ─────────── Body ─────────── */}
+      <QuestionTable />
     </div>
   );
 };

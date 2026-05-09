@@ -1,37 +1,47 @@
-import { useState } from 'react'
-import { uploadFileToS3 } from './handleUpload'
-import { useNavigate } from 'react-router-dom'
+import { useState } from 'react';
+import { fileApi, type FileMeta } from '~/shared/services/fileApi';
 
-export default function UploadFile() {
-    const [file, setFile] = useState<File | null>(null)
-    const [loading, setLoading] = useState(false)
+interface Props {
+  /** Called with the resulting file metadata after a successful upload. */
+  onUploaded?: (file: FileMeta) => void;
+}
 
-    const navigate = useNavigate()
-    const handleUpload = async () => {
-        if (!file) return
+export default function UploadFile({ onUploaded }: Props) {
+  const [file, setFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-        try {
-            setLoading(true)
-            const fileMeta = await uploadFileToS3(file, navigate)
-            alert('Upload success')
-        } catch (err) {
-            console.error(err)
-            alert('Upload failed')
-        } finally {
-            setLoading(false)
-        }
+  const handleUpload = async () => {
+    if (!file) return;
+    try {
+      setLoading(true);
+      setError(null);
+      const meta = await fileApi.presignAndUpload(file);
+      setFile(null);
+      onUploaded?.(meta);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setLoading(false);
     }
+  };
 
-    return (
-        <div>
-            <input
-                type="file"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-            />
-
-            <button onClick={handleUpload} disabled={!file || loading}>
-                {loading ? 'Uploading...' : 'Upload'}
-            </button>
-        </div>
-    )
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="file"
+        onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        className="qz-input"
+      />
+      <button
+        type="button"
+        onClick={handleUpload}
+        disabled={!file || loading}
+        className="qz-btn qz-btn-primary"
+      >
+        {loading ? 'Đang tải...' : 'Tải lên'}
+      </button>
+      {error && <span className="text-[var(--qz-danger)] text-sm">{error}</span>}
+    </div>
+  );
 }

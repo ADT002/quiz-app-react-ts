@@ -50,6 +50,7 @@ export type StudentAnswer =
 // ─── Submit request ───────────────────────────────────────────────────────────
 
 export interface TestSubmission {
+  submission_id: string;
   test_id: string;
   class_id: string;
   user_id: string;

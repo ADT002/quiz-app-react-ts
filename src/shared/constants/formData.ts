@@ -26,8 +26,10 @@ export interface QuestionFormData {
   created_at?: string;
   updated_at?: string;
   correct_map?: Record<string, string> | any[];
-  level?: Level | null,
-  topic?: Topic | null
+  // level?: Level | null,
+  // topic?: Topic | null
+  level?: string | null,
+  topic?: string | null
 }
 
 export const INITIAL_FORM_DATA: QuestionFormData = {

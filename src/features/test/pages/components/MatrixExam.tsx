@@ -1,230 +1,178 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Level } from '~/shared/components/common/LevelComponent';
-import { Topic } from '~/shared/components/common/TopicComponent';
-import API_ENDPOINTS from '~/app/config';
-import { apiCallGet } from '~/shared/services/apiCallService';
+import { memo, useEffect, useMemo, useState, useCallback } from 'react';
+import { useTopics } from '~/features/topic/useTopics';
+import { useLevels } from '~/features/level/useLevels';
+import type { MatrixExamData } from '../ManageTestModal';
 
-/* ================= TYPES ================= */
-
-
-export interface MatrixExamData {
-    topic: Topic;
-    level: Level;
-    quantity: number;
-}
+export type { MatrixExamData };
 
 interface MatrixExamProps {
-    data?: MatrixExamData[]; // edit mode
-    onChange?: (matrix: MatrixExamData[]) => void;
+    /** Edit mode: data lưu sẵn từ test (chỉ chứa ObjectId của topic & level + quantity) */
+    data: MatrixExamData[];
+    onChange: (matrix: MatrixExamData[]) => void;
 }
 
-/* ================= COMPONENT ================= */
+/**
+ * Matrix exam editor.
+ *
+ * Thiết kế: matrix được DERIVE từ prop `data` (không duplicate state).
+ * Mọi thay đổi gọi onChange trực tiếp → tránh useEffect loop khi onChange không stable.
+ * Chỉ giữ local state cho UI selection (topic/level đang tick chưa có cell).
+ */
+function MatrixExam({ data, onChange }: MatrixExamProps) {
 
-export default function MatrixExam({
-    data = [],
-    onChange,
-}: MatrixExamProps) {
-    /* ===== SELECT ===== */
-    const [selectedTopics, setSelectedTopics] = useState<Topic[]>([]);
-    const [selectedLevels, setSelectedLevels] = useState<Level[]>([]);
-    const [topics, setTopics] = useState<Topic[]>([]);
-    const [levels, setLevels] = useState<Level[]>([]);
-    const navigate = useNavigate();
+    const { items: allTopics, map: topicMap } = useTopics();
+    const { items: allLevels, map: levelMap } = useLevels();
 
+    /* UI selection: topic/level user tick — có thể bao gồm cả ID chưa có cell */
+    const [tickedTopicIds, setTickedTopicIds] = useState<string[]>([]);
+    const [tickedLevelIds, setTickedLevelIds] = useState<string[]>([]);
+
+    /* Sync ticked sets khi prop `data` đổi (edit mode hoặc reset) */
     useEffect(() => {
-        fetchTopics();
-        fetchLevels();
-    }, []);
-
-    const fetchTopics = async () => {
-        const data = await apiCallGet<Topic[]>(API_ENDPOINTS.TOPIC, navigate);
-        const sorted = [...data].sort((a, b) => a.topic_no - b.topic_no);
-        setTopics(sorted);
-    };
-
-    const fetchLevels = async () => {
-        const data = await apiCallGet<Level[]>(API_ENDPOINTS.LEVEL, navigate);
-        setLevels(data);
-    };
-    /* ===== MATRIX ===== */
-    const [matrix, setMatrix] = useState<Record<string, MatrixExamData>>({});
-
-    /* ===== INIT EDIT MODE ===== */
-    useEffect(() => {
-        if (!data.length) return;
-
-        const initMatrix: Record<string, MatrixExamData> = {};
-        const topicMap = new Map<string, Topic>();
-        const levelMap = new Map<string, Level>();
-
-        data.forEach(cell => {
-            const key = `${cell.topic._id}_${cell.level._id}`;
-            initMatrix[key] = cell;
-            topicMap.set(cell.topic._id, cell.topic);
-            levelMap.set(cell.level._id, cell.level);
+        if (!data?.length) return;
+        setTickedTopicIds((prev) => {
+            const fromData = Array.from(new Set(data.map((c) => c.topic)));
+            // Giữ các tick hiện có + thêm những topic ID có trong data
+            const merged = new Set([...prev, ...fromData]);
+            return Array.from(merged);
         });
-
-        setMatrix(initMatrix);
-        setSelectedTopics(Array.from(topicMap.values()));
-        setSelectedLevels(Array.from(levelMap.values()));
+        setTickedLevelIds((prev) => {
+            const fromData = Array.from(new Set(data.map((c) => c.level)));
+            const merged = new Set([...prev, ...fromData]);
+            return Array.from(merged);
+        });
     }, [data]);
 
-    /* ===== TOGGLE CELL ===== */
-    const toggleCell = (topic: Topic, level: Level) => {
-        const key = `${topic._id}_${level._id}`;
+    /* Map nhanh để check có cell chưa */
+    const matrixMap = useMemo(() => {
+        const m: Record<string, MatrixExamData> = {};
+        data?.forEach((c) => {
+            m[`${c.topic}_${c.level}`] = c;
+        });
+        return m;
+    }, [data]);
 
-        setMatrix(prev => {
-            const updated = { ...prev };
-
-            if (updated[key]) {
-                // ❌ đã có → remove (uncheck)
-                delete updated[key];
+    /* ── Toggle cell ── trực tiếp gọi onChange */
+    const toggleCell = useCallback(
+        (topicId: string, levelId: string) => {
+            console.log(data)
+            const key = `${topicId}_${levelId}`;
+            if (matrixMap[key]) {
+                onChange(data.filter((c) => `${c.topic}_${c.level}` !== key));
             } else {
-                // ✅ chưa có → thêm mới
-                const { user_id: _, ...cleanTopic } = topic;
-                const { user_id: __, ...cleanLevel } = level;
-
-                updated[key] = {
-                    topic: cleanTopic,
-                    level: cleanLevel,
-                    quantity: 1,
-                };
+                onChange([...data, { topic: topicId, level: levelId, quantity: 1 }]);
             }
+        },
+        [matrixMap, data, onChange],
+    );
 
-            onChange?.(Object.values(updated));
-            return updated;
-        });
-    };
+    /* ── Change quantity ── */
+    const changeQuantity = useCallback(
+        (topicId: string, levelId: string, quantity: number) => {
+            const key = `${topicId}_${levelId}`;
+            if (!matrixMap[key]) return;
+            onChange(
+                data.map((c) =>
+                    `${c.topic}_${c.level}` === key ? { ...c, quantity } : c,
+                ),
+            );
+        },
+        [matrixMap, data, onChange],
+    );
 
+    const toggleTopic = useCallback((id: string) => {
+        setTickedTopicIds((prev) =>
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+        );
+    }, []);
 
-    /* ===== CHANGE QUANTITY ===== */
-    const changeQuantity = (
-        topicId: string,
-        levelId: string,
-        quantity: number,
-    ) => {
-        const key = `${topicId}_${levelId}`;
+    const toggleLevel = useCallback((id: string) => {
+        setTickedLevelIds((prev) =>
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+        );
+    }, []);
 
-        setMatrix(prev => {
-            if (!prev[key]) return prev;
+    /* Sort topics theo topic_no */
+    const sortedTickedTopics = useMemo(
+        () =>
+            tickedTopicIds
+                .map((id) => topicMap[id])
+                .filter(Boolean)
+                .sort((a, b) => a.topic_no - b.topic_no),
+        [tickedTopicIds, topicMap],
+    );
 
-            const updated = {
-                ...prev,
-                [key]: { ...prev[key], quantity },
-            };
-
-            onChange?.(Object.values(updated));
-            return updated;
-        });
-    };
-
-    const sortedTopics = useMemo(() => {
-        return [...selectedTopics].sort((a, b) => a.topic_no - b.topic_no);
-    }, [selectedTopics]);
-
-    /* ================= UI ================= */
+    const sortedTickedLevels = useMemo(
+        () => tickedLevelIds.map((id) => levelMap[id]).filter(Boolean),
+        [tickedLevelIds, levelMap],
+    );
 
     return (
         <div className="space-y-6">
-
-            {/* ===== SELECT TOPIC ===== */}
+            {/* ── Select Topic ── */}
             <div>
                 <h3 className="font-semibold mb-2">📘 Chọn chương</h3>
                 <div className="flex flex-wrap gap-3">
-                    {topics && topics.map(topic => {
-                        const checked = selectedTopics.some(t => t._id === topic._id);
-                        return (
-                            <label key={topic._id} className="flex items-center gap-2">
-                                <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    onChange={() =>
-                                        setSelectedTopics(prev =>
-                                            checked
-                                                ? prev.filter(t => t._id !== topic._id)
-                                                : [...prev, topic],
-                                        )
-                                    }
-                                />
-                                {topic.topic_name}
-                            </label>
-                        );
-                    })}
+                    {allTopics.map((topic) => (
+                        <label key={topic._id} className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                checked={tickedTopicIds.includes(topic._id)}
+                                onChange={() => toggleTopic(topic._id)}
+                            />
+                            {topic.topic_name}
+                        </label>
+                    ))}
                 </div>
             </div>
 
-            {/* ===== SELECT LEVEL ===== */}
+            {/* ── Select Level ── */}
             <div>
                 <h3 className="font-semibold mb-2">📊 Chọn mức độ</h3>
                 <div className="flex flex-wrap gap-3">
-                    {levels && levels.map(level => {
-                        const checked = selectedLevels.some(l => l._id === level._id);
-                        return (
-                            <label key={level._id} className="flex items-center gap-2">
-                                <input
-                                    type="checkbox"
-                                    checked={checked}
-                                    onChange={() =>
-                                        setSelectedLevels(prev =>
-                                            checked
-                                                ? prev.filter(l => l._id !== level._id)
-                                                : [...prev, level],
-                                        )
-                                    }
-                                />
-                                {level.level_name}
-                            </label>
-                        );
-                    })}
+                    {allLevels.map((level) => (
+                        <label key={level._id} className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                checked={tickedLevelIds.includes(level._id)}
+                                onChange={() => toggleLevel(level._id)}
+                            />
+                            {level.level_name}
+                        </label>
+                    ))}
                 </div>
             </div>
 
-            {/* ===== MATRIX ===== */}
-            {selectedTopics.length > 0 && selectedLevels.length > 0 && (
+            {/* ── Matrix table ── */}
+            {sortedTickedTopics.length > 0 && sortedTickedLevels.length > 0 && (
                 <div className="overflow-x-auto border rounded-xl bg-white shadow">
                     <table className="min-w-full border-collapse text-sm">
                         <thead>
                             <tr className="bg-gray-100">
-                                <th className="border px-4 py-2 text-left">
-                                    Topic \\ Level
-                                </th>
-                                {selectedLevels.map(level => (
-                                    <th
-                                        key={level._id}
-                                        className="border px-4 py-2 text-center"
-                                    >
+                                <th className="border px-4 py-2 text-left">Topic \\ Level</th>
+                                {sortedTickedLevels.map((level) => (
+                                    <th key={level._id} className="border px-4 py-2 text-center">
                                         {level.level_name}
                                     </th>
                                 ))}
                             </tr>
                         </thead>
-
                         <tbody>
-                            {sortedTopics.map(topic => (
+                            {sortedTickedTopics.map((topic) => (
                                 <tr key={topic._id}>
-                                    <td className="border px-4 py-2 font-medium">
-                                        {topic.topic_name}
-                                    </td>
-
-                                    {selectedLevels.map(level => {
+                                    <td className="border px-4 py-2 font-medium">{topic.topic_name}</td>
+                                    {sortedTickedLevels.map((level) => {
                                         const key = `${topic._id}_${level._id}`;
-                                        const cell = matrix[key];
-
+                                        const cell = matrixMap[key];
                                         return (
-                                            <td
-                                                key={key}
-                                                className="border px-2 py-2 text-center"
-                                            >
+                                            <td key={key} className="border px-2 py-2 text-center">
                                                 <div className="flex flex-col items-center gap-1">
                                                     <input
                                                         type="checkbox"
                                                         checked={!!cell}
-                                                        onChange={() =>
-                                                            toggleCell(topic, level)
-                                                        }
+                                                        onChange={() => toggleCell(topic._id, level._id)}
                                                     />
                                                     <input
                                                         type="number"
@@ -232,7 +180,7 @@ export default function MatrixExam({
                                                         disabled={!cell}
                                                         className="w-16 border rounded px-1 py-0.5 text-center disabled:bg-gray-100"
                                                         value={cell?.quantity ?? ''}
-                                                        onChange={e =>
+                                                        onChange={(e) =>
                                                             changeQuantity(
                                                                 topic._id,
                                                                 level._id,
@@ -253,3 +201,5 @@ export default function MatrixExam({
         </div>
     );
 }
+
+export default memo(MatrixExam);

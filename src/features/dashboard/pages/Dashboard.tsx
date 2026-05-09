@@ -30,7 +30,8 @@ interface DashboardTest {
   duration_minutes: number;
   matrix_exam: MatrixExamData[];
   is_test: boolean;
-  hasSubmitted: boolean;
+  has_submitted: boolean;
+  submission: any
 }
 
 interface DashboardClass {
@@ -49,6 +50,7 @@ interface ConfirmTestState {
   end_time: string;
   duration_minutes: number;
   matrix_exam: MatrixExamData[];
+  is_test: boolean
 }
 
 /* ─────────────────────── TestCard ─────────────────────── */
@@ -79,6 +81,7 @@ const TestCard = memo(({ test, authorMail, classId, onConfirm }: TestCardProps) 
       end_time: test.end_time,
       duration_minutes: test.duration_minutes,
       matrix_exam: test.matrix_exam,
+      is_test: test.is_test,
     });
   }, [onConfirm, classId, authorMail, test]);
 
@@ -88,23 +91,24 @@ const TestCard = memo(({ test, authorMail, classId, onConfirm }: TestCardProps) 
     });
   }, [navigate, authorMail, test._id, classId]);
 
+  console.log(test)
   // Status mapping
-  const status = test.hasSubmitted
+  const status = test.has_submitted
     ? { pill: 'qz-pill-success', label: t('dashboard.submitted'), icon: <CheckCircle2 size={12} /> }
     : isExpired
-    ? { pill: 'qz-pill-danger', label: t('dashboard.closed'), icon: <X size={12} /> }
-    : isActive
-    ? { pill: 'qz-pill-open', label: t('dashboard.open'), icon: <PlayCircle size={12} /> }
-    : { pill: 'qz-pill-muted', label: t('dashboard.not_open'), icon: <Clock size={12} /> };
+      ? { pill: 'qz-pill-danger', label: t('dashboard.closed'), icon: <X size={12} /> }
+      : isActive
+        ? { pill: 'qz-pill-open', label: t('dashboard.open'), icon: <PlayCircle size={12} /> }
+        : { pill: 'qz-pill-muted', label: t('dashboard.not_open'), icon: <Clock size={12} /> };
 
   // Decorative accent stripe per state
-  const accent = test.hasSubmitted
+  const accent = test.has_submitted
     ? 'bg-[#dcfce7]'
     : isActive
-    ? 'bg-[var(--qz-violet-soft)]'
-    : isExpired
-    ? 'bg-[#fee2e2]'
-    : 'bg-[#f1f5f9]';
+      ? 'bg-[var(--qz-violet-soft)]'
+      : isExpired
+        ? 'bg-[#fee2e2]'
+        : 'bg-[#f1f5f9]';
 
   return (
     <article className="qz-card-interactive overflow-hidden flex flex-col">
@@ -132,9 +136,8 @@ const TestCard = memo(({ test, authorMail, classId, onConfirm }: TestCardProps) 
             </span>
           </div>
         </div>
-
         <div className="mt-auto">
-          {test.hasSubmitted ? (
+          {test.has_submitted ? (
             <button onClick={handleReview} className="qz-btn qz-btn-secondary w-full">
               <Eye size={16} /> {t('dashboard.review')}
             </button>
@@ -149,7 +152,7 @@ const TestCard = memo(({ test, authorMail, classId, onConfirm }: TestCardProps) 
           )}
         </div>
       </div>
-    </article>
+    </article >
   );
 });
 
@@ -238,11 +241,7 @@ const Dashboard: React.FC = () => {
   const fetchClasses = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiCallPost<DashboardClass[]>(
-        API_ENDPOINTS.STUDENT_CLASSES,
-        {},
-        navigate,
-      );
+      const data = await apiCallPost<DashboardClass[]>(API_ENDPOINTS.STUDENT_CLASSES, {});
       setClasses(data);
     } catch {
       toast.error(t('dashboard.fetchError', 'Không thể tải danh sách lớp học'));
@@ -263,15 +262,28 @@ const Dashboard: React.FC = () => {
     fetchClasses();
   }, [fetchClasses]);
 
-  const handleDoTest = useCallback(() => {
+  const handleDirect = useCallback(() => {
     if (!confirmTest) return;
-    navigate('/do-test', {
-      state: {
-        author_mail: confirmTest.author_mail,
-        test_id: confirmTest.test_id,
-        class_id: confirmTest.class_id,
-      },
-    });
+    console.log(confirmTest)
+    if (confirmTest.is_test) {
+      navigate('/do-test', {
+        state: {
+          author_mail: confirmTest.author_mail,
+          test_id: confirmTest.test_id,
+          class_id: confirmTest.class_id,
+        },
+      });
+      return
+    }
+    else {
+      navigate('/practice', {
+        state: {
+          author_mail: confirmTest.author_mail,
+          test_id: confirmTest.test_id,
+          class_id: confirmTest.class_id,
+        },
+      });
+    }
   }, [navigate, confirmTest]);
 
   /* ── Loading ── */
@@ -287,7 +299,7 @@ const Dashboard: React.FC = () => {
   /* ── Aggregate stats ── */
   const totalTests = classes.reduce((sum, c) => sum + (c.tests?.length ?? 0), 0);
   const submittedTests = classes.reduce(
-    (sum, c) => sum + (c.tests?.filter((t) => t.hasSubmitted).length ?? 0),
+    (sum, c) => sum + (c.tests?.filter((t) => t.has_submitted).length ?? 0),
     0,
   );
 
@@ -402,7 +414,7 @@ const Dashboard: React.FC = () => {
         <ConfirmModal
           confirmTest={confirmTest}
           onCancel={handleCancelConfirm}
-          onConfirm={handleDoTest}
+          onConfirm={handleDirect}
         />
       )}
 

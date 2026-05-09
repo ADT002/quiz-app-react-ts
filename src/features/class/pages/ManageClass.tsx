@@ -1,22 +1,14 @@
-import React, { useState, useEffect, useCallback, FormEvent } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
-import {
-  fetchClasses,
-  createClass,
-  saveClass,
-  deleteClass,
-} from '~/features/class/classSlice';
+import React, { useState, useCallback, FormEvent } from 'react';
 import ClassCodeComponent from './ClassCodeComponent';
 import TestManagement from './TestManager/TestManager';
 import { Check, CirclePlus, Trash, X, FileText } from 'lucide-react';
-import type { RootState, AppDispatch } from '~/app/store';
 import { TestFormData } from '~/features/test/pages/ManageTestModal';
 import { toast } from 'react-toastify';
 import ManageClassList from './DataTable/ManageClassList';
 import TagManagement from './component/TagManagement';
 import { ClassTabs } from './component/ClassTab';
 import { useTranslation } from 'react-i18next';
+import { useClasses } from '~/features/class/useClasses';
 
 export interface StudentInfo {
   user_id: string;
@@ -45,11 +37,9 @@ const defaultFormData: ClassFormData = {
 };
 
 function ManageClass() {
-  const dispatch = useDispatch<AppDispatch>();
-  const navigate = useNavigate();
   const { t } = useTranslation();
+  const { items: allClass, isLoading, isError, error, create, update, remove } = useClasses();
 
-  const { allClass, status, error } = useSelector((state: RootState) => state.classes);
   const [newStudent, setNewStudent] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -57,27 +47,6 @@ function ManageClass() {
   const [activeTab, setActiveTab] = useState<
     'class-info' | 'tests' | 'tags' | 'students'
   >('class-info');
-
-
-
-  {
-    <ClassTabs
-      activeTab={activeTab}
-      setActiveTab={setActiveTab}
-      formData={formData}
-    />
-  }
-
-
-
-  useEffect(() => {
-    fetchData();
-  }, [dispatch]);
-
-  const fetchData = useCallback(async () => {
-    await dispatch(fetchClasses({ navigate }));
-  }, []);
-
 
   const handleAddClass = useCallback(() => {
     setIsEditing(false);
@@ -99,36 +68,31 @@ function ManageClass() {
     async (e: FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>) => {
       e.preventDefault();
       try {
-        const action = isEditing ? saveClass : createClass;
-        await dispatch(action({ values: formData })).unwrap();
+        if (isEditing) await update(formData);
+        else await create(formData);
         toast.success(isEditing ? t('success') : t('manageClass.add_class') + ' ' + t('success'));
         setIsModalOpen(false);
-      } catch (error) {
-        console.error('Lỗi khi lưu lớp học:', error);
+      } catch {
         toast.error(t('error'));
       }
     },
-    [dispatch, isEditing, formData, t],
+    [isEditing, formData, create, update, t],
   );
 
   const handleDelete = useCallback(
     async (values: { id?: string }) => {
-      console.log(values)
       if (!values.id) return;
-      const confirmed = window.confirm(t('confirm_.delete_class'));
-      if (!confirmed) return;
-
+      if (!window.confirm(t('confirm_.delete_class'))) return;
       try {
-        await dispatch(deleteClass({ _id: values.id })).unwrap();
+        await remove(values.id);
         toast.success(t('delete') + ' ' + t('success'));
-      } catch (error) {
-        console.error('Lỗi khi xóa lớp học:', error);
+      } catch {
         toast.error(t('error'));
       } finally {
         setIsModalOpen(false);
       }
     },
-    [dispatch, t],
+    [remove, t],
   );
 
   const updateStudentList = useCallback(
@@ -191,8 +155,8 @@ function ManageClass() {
     setNewStudent('');
   }, [newStudent, formData.students_accept, t]);
 
-  if (status === 'loading') return <p className="text-center">{t('loading')}</p>;
-  if (status === 'failed') return <p className="text-center text-red-600">{t('error')}: {error}</p>;
+  if (isLoading) return <p className="text-center">{t('loading')}</p>;
+  if (isError) return <p className="text-center text-red-600">{t('error')}: {error}</p>;
 
   return (
     <div className="space-y-6 animate-fadeIn">
@@ -299,7 +263,7 @@ function ManageClass() {
                 </div>
               )}
 
-              {activeTab === 'tests' && <TestManagement formData={formData} navigate={navigate} />}
+              {activeTab === 'tests' && <TestManagement formData={formData} />}
 
               {activeTab === 'tags' && (
                 <TagManagement
