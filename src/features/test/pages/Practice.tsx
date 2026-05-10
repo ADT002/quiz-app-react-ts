@@ -21,7 +21,7 @@ const Practice: React.FC = () => {
   const location = useLocation();
   const { author_mail, test_id, class_id } = location.state || {};
   const { t } = useTranslation();
-
+  console.log(test_id)
   const [questions, setQuestions] = useState<Question[]>([]);
   const [submissions, setSubmissions] = useState<Record<string, Submission>>({});
   const [currentIndex, setCurrentIndex] = useState(0);

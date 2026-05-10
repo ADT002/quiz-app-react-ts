@@ -67,7 +67,7 @@ const SingleChoiceQuestion: React.FC<Props> = ({
 
       {question.question_content.file_url && (
         <div className="flex justify-center mb-6">
-          <FileViewer filename={question.question_content.file_url} />
+          <FileViewer fileId={question.question_content.file_url} />
         </div>
       )}
 

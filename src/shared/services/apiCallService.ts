@@ -23,6 +23,7 @@ const apiCall = async <T = any>(
   try {
     console.log(config)
     const response: AxiosResponse<T> = await axiosInstance(config);
+    console.log(response)
     return response.data;
   } catch (error: any) {
     console.log(error)

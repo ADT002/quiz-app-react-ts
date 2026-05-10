@@ -48,7 +48,7 @@ export default function TagManagement({
       </div>
 
       {/* ===== TAG LIST ===== */}
-      {tags.length === 0 ? (
+      {!tags || tags.length === 0 ? (
         <p className="text-sm text-gray-500">Chưa có tag nào</p>
       ) : (
         <div className="flex flex-wrap gap-2">

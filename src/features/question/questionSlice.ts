@@ -114,6 +114,7 @@ const questionSlice = createSlice({
       .addCase(fetchQuestions.fulfilled, (state, action) => {
         state.statusQuestion = 'succeeded';
         const newQuestions = action.payload.data;
+        console.log(newQuestions.length)
         if (!newQuestions || newQuestions.length === 0) {
           state.hasMoreQuestions = false;
         } else {

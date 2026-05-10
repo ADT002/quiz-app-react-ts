@@ -34,7 +34,7 @@ const StudentProfileModal = ({ open, onClose, onSuccess }: Props) => {
     const [error, setError] = useState<string | null>(null);
 
     const navigate = useNavigate();
-    const modalRef = useRef<HTMLDivElement>(null);
+    const modalRef = useRef<HTMLDivElement>(null as unknown as HTMLDivElement);
 
     // ===== Modal behavior (ESC, click outside, disable scroll)
     const { handleBackdropClick } = useModalBehavior(
@@ -42,6 +42,8 @@ const StudentProfileModal = ({ open, onClose, onSuccess }: Props) => {
         onClose,
         modalRef
     );
+
+
 
     // =====================
     // Fetch user info
@@ -56,7 +58,6 @@ const StudentProfileModal = ({ open, onClose, onSuccess }: Props) => {
 
                 const data = await apiCallGet<UserProfile>(
                     API_ENDPOINTS.USER_ME,
-                    navigate
                 );
 
                 setForm({

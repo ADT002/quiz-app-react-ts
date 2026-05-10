@@ -79,7 +79,6 @@ export default function ListTest() {
       const result = await apiCallPost<TestItem[]>(
         API_ENDPOINTS.GET_TESTS_OF_CLASS,
         { class_id: classId },
-        navigate,
       );
       setTests(result);
     } catch (err) {

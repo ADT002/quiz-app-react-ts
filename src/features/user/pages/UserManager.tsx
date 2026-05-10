@@ -27,7 +27,7 @@ const UserManager: React.FC = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const res = await apiCallGet<User[]>(API_ENDPOINTS.USER, {}, navigate);
+      const res = await apiCallGet<User[]>(API_ENDPOINTS.USER);
 
       // ❌ Loại bỏ user có ADMIN
       const filteredUsers = (res || []).filter(

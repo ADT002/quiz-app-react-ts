@@ -12,7 +12,7 @@ const ManageClassList: React.FC<Props> = ({ data, onClick }) => {
 
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();
-    data.forEach(item => item.tags.forEach(tag => tagSet.add(tag)));
+    data && data.forEach(item => item.tags?.forEach(tag => tagSet.add(tag)));
     return Array.from(tagSet);
   }, [data]);
 
@@ -34,9 +34,8 @@ const ManageClassList: React.FC<Props> = ({ data, onClick }) => {
           <button
             key={tag}
             onClick={() => setSelectedTag(tag)}
-            className={`px-3 py-1 rounded-full border ${
-              selectedTag === tag ? 'bg-purple-500 text-white' : 'bg-gray-100'
-            }`}
+            className={`px-3 py-1 rounded-full border ${selectedTag === tag ? 'bg-purple-500 text-white' : 'bg-gray-100'
+              }`}
           >
             #{tag}
           </button>

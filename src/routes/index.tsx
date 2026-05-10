@@ -3,6 +3,7 @@ import { Suspense, lazy, type ReactNode } from 'react';
 import MainLayout from '~/layouts/Layout';
 import TokenService from '~/shared/services/StorageService';
 
+
 /* ─────────────────────── Code-split routes ─────────────────────── */
 /** Login & Logout đặt eager để tránh flash khi ai đó vừa logout */
 import Login from '~/features/auth/components/Login';
@@ -10,8 +11,7 @@ import Logout from '~/features/auth/components/Logout';
 
 const Dashboard = lazy(() => import('~/features/dashboard/pages/Dashboard'));
 const ListTest = lazy(() => import('~/features/test/pages/ListTest'));
-const DoTest = lazy(() => import('~/features/test/pages/DoTest'));
-const Practice = lazy(() => import('~/features/test/pages/Practice'));
+const Practice = lazy(() => import('~/features/practice/pages/Practice'));
 const ExamDoTest = lazy(() => import('~/features/exam/pages/DoTest'));
 const ManageClass = lazy(() => import('~/features/class/pages/ManageClass'));
 const ManageTest = lazy(() => import('~/features/test/pages/ManageTest'));
@@ -48,9 +48,9 @@ export default function AppRoutes() {
         <Route path="logout" element={<Logout />} />
         <Route path="dashboard" element={<Protected><Dashboard /></Protected>} />
         <Route path="list-test/:classId/:author" element={<Protected><ListTest /></Protected>} />
-        <Route path="do-test" element={<Protected><DoTest /></Protected>} />
+        <Route path="do-test" element={<Protected><ExamDoTest /></Protected>} />
         <Route path="exam/:test_of_class_id" element={<Protected><ExamDoTest /></Protected>} />
-        <Route path="practice" element={<Protected><Practice /></Protected>} />
+        <Route path="practice/:test_of_class_id" element={<Protected><Practice /></Protected>} />
         <Route path="manage-class" element={<Protected><ManageClass /></Protected>} />
         <Route path="manage-test" element={<Protected><ManageTest /></Protected>} />
         <Route path="manage-question" element={<Protected><ManageQuestion /></Protected>} />

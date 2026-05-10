@@ -21,7 +21,6 @@ interface QuestionListProps {
   toggleTagSelection: (tag: string) => void;
   selectedTags: string[];
   handleDelete: (id: string) => void;
-  selectable: boolean;
   selectedQuestionIds: string[];
   toggleQuestionSelection: (question: Question) => void;
 }
@@ -33,7 +32,6 @@ const QuestionList: React.FC<QuestionListProps> = ({
   toggleTagSelection,
   selectedTags,
   handleDelete,
-  selectable,
   selectedQuestionIds,
   toggleQuestionSelection,
 }) => {
@@ -192,7 +190,7 @@ const QuestionList: React.FC<QuestionListProps> = ({
   /* ================= RENDER ================= */
   return (
     <div className="overflow-x-auto">
-      {!selectable && (
+      {(
         <div className="flex justify-between items-center mb-2">
           <div className="text-sm text-gray-600">
             Selected: {selectedQuestionIds.length}

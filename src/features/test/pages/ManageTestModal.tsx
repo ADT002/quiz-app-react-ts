@@ -1,21 +1,31 @@
 import React, { memo, useCallback, useMemo, useState } from 'react';
-import { X, Trash2, Check, BookOpenCheck, BookPlus, Info, CalendarClock, Tags, ListChecks, Grid2X2 } from 'lucide-react';
+import {
+  X,
+  Trash2,
+  Check,
+  BookOpenCheck,
+  BookPlus,
+  Info,
+  CalendarClock,
+  Tags,
+  ListChecks,
+  Grid2X2,
+} from 'lucide-react';
+
 import TestInfoForm from './components/TestInfoForm';
 import TestTagsToggle from './components/TestTagsToggle';
 import TestScheduleForm from './components/TestScheduleForm';
-import QuestionTable from '~/features/question/pages/QuestionComponent/QuestionTable';
 import MatrixExam from './components/MatrixExam';
-import { Topic } from '~/shared/components/common/TopicComponent';
-import { Level } from '~/shared/components/common/LevelComponent';
+
+import { SelectableQuestionTable } from '~/features/question/components/SelectableQuestionTable';
+import { useLevels, useTopics } from '~/features/question/hooks/useTaxonomy';
+import type { Level, Question, Topic } from '~/features/question/types';
 import { formatDateTime } from '~/shared/utils/objectId';
-import { Question } from '~/shared/types/question';
-import { useTopics } from '~/features/topic/useTopics';
-import { useLevels } from '~/features/level/useLevels';
 
 export interface MatrixExamData {
-  topic: string,
-  level: string,
-  quantity: number
+  topic: string;
+  level: string;
+  quantity: number;
 }
 
 export interface UserSubmit {
@@ -24,7 +34,6 @@ export interface UserSubmit {
   email_id: string;
 }
 
-// Type định nghĩa cho dữ liệu bài test
 export interface TestFormData {
   _id: string;
   test_name: string;
@@ -35,13 +44,11 @@ export interface TestFormData {
   is_test: boolean;
   tags: string[];
   question_ids: string[];
-  test_score: number
-  matrix_exam: MatrixExamData[]
-  user_submit: UserSubmit[]
+  test_score: number;
+  matrix_exam: MatrixExamData[];
+  user_submit: UserSubmit[];
 }
 
-
-/* Tabs definition tĩnh — không tái tạo mỗi render */
 const TABS = [
   { id: 'test-info', label: 'Test Info', icon: <Info size={18} /> },
   { id: 'schedule', label: 'Schedule', icon: <CalendarClock size={18} /> },
@@ -50,28 +57,6 @@ const TABS = [
   { id: 'matrix', label: 'Matrix Exam', icon: <Grid2X2 size={18} /> },
 ] as const;
 
-interface SelectableQuestionTableProps {
-  formData: TestFormData;
-  setFormData: React.Dispatch<React.SetStateAction<TestFormData>>;
-  selectable?: boolean;
-}
-
-const SelectableQuestionTable: React.FC<SelectableQuestionTableProps> = ({
-  // questions,
-  formData,
-  setFormData,
-  selectable,
-}) => {
-  return (
-    <QuestionTable
-      formDataTest={formData}
-      setFormDataTest={setFormData}
-      selectable={selectable}
-    />
-  );
-};
-
-// Props cho component chính
 interface ManageTestModalProps {
   isEditing: boolean;
   onClose: () => void;
@@ -79,9 +64,12 @@ interface ManageTestModalProps {
   onDelete: (id: string) => void;
   formData: TestFormData;
   setFormData: React.Dispatch<React.SetStateAction<TestFormData>>;
-  questions: Record<string, any[]>; // You can replace `any` with your `Question` type
-  selectable?: boolean;
-
+  /**
+   * Map id → Question của các câu **đã chọn** (formData.question_ids).
+   * Dùng để vẽ matrix progress dựa trên topic/level. Caller (ManageTest) bơm
+   * dữ liệu từ React Query cache hoặc state cục bộ.
+   */
+  questions: Record<string, Question[]>;
 }
 
 const ManageTestModal: React.FC<ManageTestModalProps> = ({
@@ -92,76 +80,78 @@ const ManageTestModal: React.FC<ManageTestModalProps> = ({
   formData,
   setFormData,
   questions,
-  selectable
 }) => {
-  const { map: topicMap } = useTopics();
-  const { map: levelMap } = useLevels();
+  const topicsQ = useTopics();
+  const levelsQ = useLevels();
+
+  const topicMap = useMemo(() => {
+    const map: Record<string, Topic> = {};
+    for (const t of topicsQ.data ?? []) map[t._id] = t;
+    return map;
+  }, [topicsQ.data]);
+
+  const levelMap = useMemo(() => {
+    const map: Record<string, Level> = {};
+    for (const l of levelsQ.data ?? []) map[l._id] = l;
+    return map;
+  }, [levelsQ.data]);
 
   const [activeTab, setActiveTab] = useState<string>('test-info');
+
   const matrixExam = useMemo<MatrixExamData[]>(
     () => (Array.isArray(formData.matrix_exam) ? formData.matrix_exam : []),
     [formData.matrix_exam],
   );
 
+  /** Lookup map cho các câu đã chọn — phục vụ matrix progress. */
   const questionMap = useMemo(() => {
     const map = new Map<string, Question>();
-    Object.values(questions).flat().forEach((q) => map.set(q._id, q));
+    for (const q of Object.values(questions).flat()) {
+      if (q._id) map.set(q._id, q);
+    }
     return map;
   }, [questions]);
 
   const selectedQuestions = useMemo<Question[]>(
-    () => (formData.question_ids ?? []).map((id) => questionMap.get(id)).filter(Boolean) as Question[],
+    () =>
+      (formData.question_ids ?? [])
+        .map((id) => questionMap.get(id))
+        .filter((q): q is Question => !!q),
     [formData.question_ids, questionMap],
   );
 
-
-  /** Topic IDs xuất hiện trong matrix → resolve qua topicMap */
   const topicFilter = useMemo<Topic[]>(() => {
     const ids = new Set(matrixExam.map((m) => m.topic).filter(Boolean));
     return Array.from(ids)
       .map((id) => topicMap[id])
-      .filter(Boolean)
-      .sort((a, b) => a.topic_no - b.topic_no);
+      .filter((t): t is Topic => !!t)
+      .sort((a, b) => (a.topic_no ?? 0) - (b.topic_no ?? 0));
   }, [matrixExam, topicMap]);
 
-  /** Level IDs xuất hiện trong matrix → resolve qua levelMap */
   const levelFilter = useMemo<Level[]>(() => {
     const ids = new Set(matrixExam.map((m) => m.level).filter(Boolean));
     return Array.from(ids)
       .map((id) => levelMap[id])
-      .filter(Boolean);
+      .filter((l): l is Level => !!l);
   }, [matrixExam, levelMap]);
 
   const selectedCountMap = useMemo(() => {
     const map: Record<string, number> = {};
-    (selectedQuestions ?? []).forEach((q) => {
-      console.log(selectedQuestions)
-      if (!q.topic || !q.level) return;
+    for (const q of selectedQuestions) {
+      if (!q.topic || !q.level) continue;
       const key = `${q.topic}_${q.level}`;
       map[key] = (map[key] || 0) + 1;
-    });
+    }
     return map;
   }, [selectedQuestions]);
 
-  /** matrix_exam giờ chỉ chứa string IDs */
   const requiredMap = useMemo(() => {
     const map: Record<string, number> = {};
-    (formData.matrix_exam ?? []).forEach((m) => {
+    for (const m of formData.matrix_exam ?? []) {
       map[`${m.topic}_${m.level}`] = m.quantity;
-    });
+    }
     return map;
   }, [formData.matrix_exam]);
-
-  // const canSelectQuestion = (q: Question) => {
-  //   if (!q.topic?._id || !q.level?._id) return false;
-
-  //   const key = `${q.topic._id}_${q.level._id}`;
-  //   const required = requiredMap[key] ?? 0;
-  //   const selected = selectedCountMap[key] ?? 0;
-
-  //   return selected < required;
-  // };
-
 
   const getRemaining = useCallback(
     (topicId: string, levelId: string) => {
@@ -187,10 +177,14 @@ const ManageTestModal: React.FC<ManageTestModalProps> = ({
     [setFormData],
   );
 
-
+  const handleSelectionChange = useCallback(
+    (ids: string[]) =>
+      setFormData((prev) => ({ ...prev, question_ids: ids })),
+    [setFormData],
+  );
 
   return (
-    <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+    <div className="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
       {/* Header */}
       <div className="bg-gray-50 px-4 py-3 flex items-center justify-between border-b">
         <h3 className="text-lg font-semibold text-gray-800">
@@ -202,7 +196,7 @@ const ManageTestModal: React.FC<ManageTestModalProps> = ({
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b overflow-x-auto h-[80px]">
+      <div className="flex border-b overflow-x-auto h-[56px]">
         {TABS.map((tab) => (
           <button
             key={tab.id}
@@ -226,102 +220,104 @@ const ManageTestModal: React.FC<ManageTestModalProps> = ({
         {activeTab === 'schedule' && (
           <TestScheduleForm formData={formData} setFormData={setFormData} />
         )}
-        {activeTab === 'tags' &&
+        {activeTab === 'tags' && (
           <TestTagsToggle formData={formData} setFormData={setFormData} />
-        }
+        )}
+
         {activeTab === 'questions' && (
-          <>
-            {matrixExam.length > 0 && (
-              <div className="overflow-x-auto border rounded-xl bg-white shadow">
-                <table className="min-w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="border px-4 py-2 text-left">Topic \\ Level</th>
-                      {levelFilter.map((level) => (
-                        <th key={level._id} className="border px-4 py-2 text-center">
-                          {level.level_name}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {topicFilter.map((topic) => (
-                      <tr key={topic._id}>
-                        <td className="border px-4 py-2 font-medium">{topic.topic_name}</td>
-
-                        {levelFilter.map((level) => {
-                          const remain = getRemaining(topic._id, level._id);
-                          const done = isCompleted(topic._id, level._id);
-
-                          return (
-                            <td
-                              key={`${topic._id}_${level._id}`}
-                              className="border px-2 py-2 text-center"
-                            >
-                              {requiredMap[`${topic._id}_${level._id}`] ? (
-                                done ? (
-                                  <span className="text-green-600 font-semibold">✔</span>
-                                ) : (
-                                  <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm">
-                                    {remain}
-                                  </span>
-                                )
-                              ) : (
-                                <span className="text-gray-300">—</span>
-                              )}
-                            </td>
-                          );
-                        })}
+          <div className="space-y-4">
+            {matrixExam.length > 0 &&
+              topicFilter.length > 0 &&
+              levelFilter.length > 0 && (
+                <div className="overflow-x-auto border rounded-xl bg-white shadow-sm">
+                  <table className="min-w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border px-4 py-2 text-left">Topic \ Level</th>
+                        {levelFilter.map((level) => (
+                          <th
+                            key={level._id}
+                            className="border px-4 py-2 text-center"
+                          >
+                            {level.level_name}
+                          </th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
+                    </thead>
+                    <tbody>
+                      {topicFilter.map((topic) => (
+                        <tr key={topic._id}>
+                          <td className="border px-4 py-2 font-medium">
+                            {topic.topic_name}
+                          </td>
+                          {levelFilter.map((level) => {
+                            const required =
+                              requiredMap[`${topic._id}_${level._id}`];
+                            const remain = getRemaining(topic._id, level._id);
+                            const done = isCompleted(topic._id, level._id);
+                            return (
+                              <td
+                                key={`${topic._id}_${level._id}`}
+                                className="border px-2 py-2 text-center"
+                              >
+                                {required ? (
+                                  done ? (
+                                    <span className="text-green-600 font-semibold">
+                                      ✔
+                                    </span>
+                                  ) : (
+                                    <span className="inline-block px-2 py-1 bg-blue-100 text-blue-700 rounded text-sm">
+                                      {remain}
+                                    </span>
+                                  )
+                                ) : (
+                                  <span className="text-gray-300">—</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
 
             <SelectableQuestionTable
-              // questions={questions}
-              formData={formData}
-              setFormData={setFormData}
-              selectable={selectable}
+              selectedIds={formData.question_ids ?? []}
+              onChange={handleSelectionChange}
             />
-          </>
-        )}
-        {activeTab === 'matrix' && (
-          <MatrixExam data={formData.matrix_exam ?? []} onChange={handleMatrixChange} />
+          </div>
         )}
 
+        {activeTab === 'matrix' && (
+          <MatrixExam
+            data={formData.matrix_exam ?? []}
+            onChange={handleMatrixChange}
+          />
+        )}
       </div>
+
       {/* Test summary */}
       <div className="border-t bg-gray-50 px-6 py-4">
-        <h4 className="text-sm font-semibold text-gray-700 mb-3">
-          Test Summary
-        </h4>
-
+        <h4 className="text-sm font-semibold text-gray-700 mb-3">Test Summary</h4>
         <div className="grid grid-cols-2 gap-y-3 gap-x-6 text-sm">
           <div>
             <p className="text-gray-500">Total score</p>
-            <p className="font-medium text-gray-800">
-              {formData.test_score}
-            </p>
+            <p className="font-medium text-gray-800">{formData.test_score}</p>
           </div>
-
           <div>
             <p className="text-gray-500">Duration</p>
             <p className="font-medium text-gray-800">
               {formData.duration_minutes} minutes
             </p>
           </div>
-
           <div>
             <p className="text-gray-500">Start time</p>
             <p className="font-medium text-gray-800">
               {formatDateTime(formData.start_time)}
             </p>
           </div>
-
           <div>
             <p className="text-gray-500">End time</p>
             <p className="font-medium text-gray-800">
@@ -345,11 +341,12 @@ const ManageTestModal: React.FC<ManageTestModalProps> = ({
         <button
           onClick={onSubmit}
           className="ml-auto bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 flex items-center gap-2"
+          aria-label="Lưu"
         >
           <Check className="h-4 w-4" />
         </button>
       </div>
-    </div >
+    </div>
   );
 };
 

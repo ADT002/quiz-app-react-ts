@@ -13,16 +13,29 @@ import { AutosaveIndicator } from '../components/AutosaveIndicator';
 import { QuestionPalette } from '../components/QuestionPalette';
 import { SubmitConfirmModal } from '../components/SubmitConfirmModal';
 import { QuestionRenderer } from '../components/QuestionRenderer';
-import type { PublicQuestion, StudentAnswer, SubmissionResult } from '../types';
+import { QuestionReview } from '../components/QuestionReview';
+import type {
+  PublicQuestion,
+  ReviewQuestion,
+  StudentAnswer,
+  SubmissionResult,
+} from '../types';
 import { renderText } from '../utils/renderText';
+import FileViewer from '~/shared/components/common/FileViewer';
 
 type ViewState =
   | { phase: 'loading' }
   | { phase: 'error'; message: string }
-  | { phase: 'submitted'; result: SubmissionResult }
+  | {
+      phase: 'submitted';
+      result: SubmissionResult;
+      /** Cung cấp khi end_time đã qua → bật review từng câu. */
+      reviewQuestions?: ReviewQuestion[];
+    }
   | { phase: 'exam'; submission_id: string };
 
 export default function DoTest() {
+  console.log("TEST-EXAM")
   const { test_of_class_id = '' } = useParams<{ test_of_class_id: string }>();
   const navigate = useNavigate();
 
@@ -51,7 +64,11 @@ export default function DoTest() {
       .mutateAsync(test_of_class_id)
       .then((res) => {
         if (res.mode === 'submitted') {
-          setView({ phase: 'submitted', result: res.submission as unknown as SubmissionResult });
+          setView({
+            phase: 'submitted',
+            result: res.submission as unknown as SubmissionResult,
+            reviewQuestions: res.ended ? res.questions : undefined,
+          });
           return;
         }
         if (res.mode === 'practice') {
@@ -133,7 +150,13 @@ export default function DoTest() {
   }
 
   if (view.phase === 'submitted') {
-    return <SubmittedView result={view.result} onBack={() => navigate(-1)} />;
+    return (
+      <SubmittedView
+        result={view.result}
+        reviewQuestions={view.reviewQuestions}
+        onBack={() => navigate(-1)}
+      />
+    );
   }
 
   // exam phase
@@ -169,13 +192,19 @@ export default function DoTest() {
           <h2 className="qz-h2 mt-2">
             {renderText(question?.question_content?.content)}
           </h2>
-          {question?.question_content?.image_url && (
-            <img
-              src={question.question_content.image_url}
-              alt=""
-              className="mt-3 max-h-80 rounded-lg"
-            />
+          {question?.question_content?.file_id && (
+            <div className="mt-3 max-h-80">
+              <FileViewer
+                fileId={question.question_content.file_id}
+                className="max-h-80 rounded-lg"
+              />
+            </div>
           )}
+          {question?.files?.map((f) => (
+            <div key={f.file_id} className="mt-3 max-h-80">
+              <FileViewer fileId={f.file_id} className="max-h-80 rounded-lg" />
+            </div>
+          ))}
           <div className="mt-6">
             {question && (
               <QuestionRenderer
@@ -247,14 +276,19 @@ function isAnsweredFlat(a: StudentAnswer | undefined): boolean {
 
 function SubmittedView({
   result,
+  reviewQuestions,
   onBack,
 }: {
   result: SubmissionResult;
+  reviewQuestions?: ReviewQuestion[];
   onBack: () => void;
 }) {
   const passed = result.score >= 50;
+  // Map question_id → answer result để render review từng câu.
+  const answerByQid = new Map(result.answers.map((a) => [a.question_id, a]));
+
   return (
-    <main className="max-w-md mx-auto p-6">
+    <main className="max-w-4xl mx-auto p-4 md:p-6 space-y-4">
       <div className="qz-card p-6 text-center animate-scaleIn">
         <p className="qz-caption text-[var(--qz-slate)]">Kết quả</p>
         <p
@@ -274,10 +308,59 @@ function SubmittedView({
             ? 'Tự động nộp khi hết giờ'
             : 'Đã nộp'}
         </p>
-        <button type="button" className="qz-btn qz-btn-primary mt-6" onClick={onBack}>
+        <button
+          type="button"
+          className="qz-btn qz-btn-primary mt-6"
+          onClick={onBack}
+        >
           Quay lại lớp
         </button>
       </div>
+
+      {/* Review từng câu — chỉ khi BE đã trả questions (end_time đã qua). */}
+      {reviewQuestions && reviewQuestions.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="qz-h2">Xem lại bài</h2>
+          {reviewQuestions.map((q, i) => {
+            const ans = answerByQid.get(q._id);
+            const isCorrect = ans?.is_correct ?? false;
+            return (
+              <article key={q._id} className="qz-card p-5">
+                <header className="flex items-start justify-between gap-3 mb-3">
+                  <div className="flex-1">
+                    <p className="qz-caption text-[var(--qz-slate)]">
+                      Câu {i + 1} / {reviewQuestions.length}
+                    </p>
+                    <h3 className="qz-h3 mt-1">
+                      {renderText(q.question_content?.content)}
+                    </h3>
+                  </div>
+                  <span
+                    className={`qz-pill ${isCorrect ? 'qz-pill-success' : 'qz-pill-danger'}`}
+                  >
+                    {ans?.score_earned ?? 0} / {q.score ?? 0}
+                  </span>
+                </header>
+                {q.question_content?.file_id && (
+                  <FileViewer
+                    fileId={q.question_content.file_id}
+                    className="max-h-72 rounded-lg mb-3"
+                  />
+                )}
+                <QuestionReview question={q} studentAnswer={ans} />
+                {q.suggestion && (
+                  <p className="qz-caption text-[var(--qz-slate)] mt-3 p-2 rounded bg-[var(--qz-bg)]">
+                    💡{' '}
+                    {Array.isArray(q.suggestion)
+                      ? q.suggestion.join(' ')
+                      : q.suggestion}
+                  </p>
+                )}
+              </article>
+            );
+          })}
+        </section>
+      )}
     </main>
   );
 }

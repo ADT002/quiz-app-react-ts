@@ -18,7 +18,6 @@ import type { TestFormData } from './pages/ManageTestModal';
 export function useTestTemplates(autoFetch = true) {
   const dispatch = useAppDispatch();
   const items = useAppSelector((s) => s.tests.allTestTemplates);
-  const status = useAppSelector((s) => s.tests.status);
   const error = useAppSelector((s) => s.tests.error);
 
   useEffect(() => {
@@ -57,7 +56,6 @@ export function useTestTemplates(autoFetch = true) {
 export function useTestsOfClass(class_id?: string, autoFetch = true) {
   const dispatch = useAppDispatch();
   const items = useAppSelector((s) => s.tests.allTestOfClass);
-  const status = useAppSelector((s) => s.tests.status);
   const error = useAppSelector((s) => s.tests.error);
 
   useEffect(() => {

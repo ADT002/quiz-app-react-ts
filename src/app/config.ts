@@ -13,9 +13,18 @@ const API_ENDPOINTS = {
   TESTS: `${API_BASE_URL_MANAGE_TEST}/test-templates`,
   TEST_OF_CLASS: `${API_BASE_URL_MANAGE_TEST}/test-of-class`,
   CLASSES: `${API_BASE_URL_MANAGE_TEST}/class`,
-  GENERATE_CLASS_CODE: `${API_BASE_URL_MANAGE_TEST}/code-class`,
+  CLASS_DELETE: (id: string) =>
+    `${API_BASE_URL_MANAGE_TEST}/class/${encodeURIComponent(id)}`,
+  CLASS_APPROVE: (id: string) =>
+    `${API_BASE_URL_MANAGE_TEST}/class/${encodeURIComponent(id)}/approve`,
+  CLASS_REJECT: (id: string) =>
+    `${API_BASE_URL_MANAGE_TEST}/class/${encodeURIComponent(id)}/reject`,
+  CLASS_CODE: `${API_BASE_URL_MANAGE_TEST}/class/code-class`,
+  /** @deprecated wrong path; use CLASS_CODE. */
+  GENERATE_CLASS_CODE: `${API_BASE_URL_MANAGE_TEST}/class/code-class`,
   QUESTIONS: `${API_BASE_URL_MANAGE_TEST}/questions`,
   TOPIC: `${API_BASE_URL_MANAGE_TEST}/topic`,
+  TOPIC_REORDER: `${API_BASE_URL_MANAGE_TEST}/topic/reorder`,
   LEVEL: `${API_BASE_URL_MANAGE_TEST}/level`,
   TYPE_QUESTION: `${API_BASE_URL_MANAGE_TEST}/type-question`,
   RESET_TEST: `${API_BASE_URL_MANAGE_TEST}/class/reset-test`,

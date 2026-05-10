@@ -102,7 +102,7 @@ export default function QuestionSingleForm({
             <X className="h-5 w-5 text-red-500" />
           </button>
         </div>
-        <FileViewer filename={fileUrl} />
+        <FileViewer fileId={fileUrl} />
         <button
           type="button"
           onClick={() => setIsModalImageOpen(true)}
@@ -112,9 +112,14 @@ export default function QuestionSingleForm({
           Upload File
         </button>
 
-        {<AllFileComponent isOpen={isModalImageOpen} onClose={() => {
-          setIsModalImageOpen(false)
-        }} select={handleSelectFile} />}
+        {<AllFileComponent
+          isOpen={isModalImageOpen}
+          onClose={() => {
+            setIsModalImageOpen(false);
+          }}
+          onSelect={(f) => handleSelectFile(f.file_id)}
+        />}
+
       </div>
 
       {/* ===== OPTIONS ===== */}

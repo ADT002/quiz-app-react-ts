@@ -86,7 +86,7 @@ const TestCard = memo(({ test, authorMail, classId, onConfirm }: TestCardProps) 
   }, [onConfirm, classId, authorMail, test]);
 
   const handleReview = useCallback(() => {
-    navigate('/do-test', {
+    navigate('/exam/' + test._id, {
       state: { author_mail: authorMail, test_id: test._id, class_id: classId },
     });
   }, [navigate, authorMail, test._id, classId]);
@@ -266,7 +266,7 @@ const Dashboard: React.FC = () => {
     if (!confirmTest) return;
     console.log(confirmTest)
     if (confirmTest.is_test) {
-      navigate('/do-test', {
+      navigate('/exam/' + confirmTest.test_id, {
         state: {
           author_mail: confirmTest.author_mail,
           test_id: confirmTest.test_id,
@@ -276,7 +276,7 @@ const Dashboard: React.FC = () => {
       return
     }
     else {
-      navigate('/practice', {
+      navigate('/practice/' + confirmTest.test_id, {
         state: {
           author_mail: confirmTest.author_mail,
           test_id: confirmTest.test_id,

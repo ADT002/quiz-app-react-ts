@@ -1,14 +1,20 @@
 import { useState, useCallback } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import type { Dispatch, SetStateAction } from 'react';
 
-const TagsInput = ({ formData, setFormData }) => {
+type TagsInputProps = {
+  formData: any;
+  setFormData: Dispatch<SetStateAction<any>>;
+};
+
+const TagsInput = ({ formData, setFormData }: TagsInputProps) => {
   const [inputValue, setInputValue] = useState('');
 
-  const addTag = useCallback(() => {
+  const addTag = useCallback((): void => {
     const newTag = inputValue.trim();
     if (!newTag || formData.tags?.includes(newTag)) return;
 
-    setFormData((prev) => ({
+    setFormData((prev: any) => ({
       ...prev,
       tags: [...(prev.tags || []), newTag],
     }));
@@ -16,7 +22,7 @@ const TagsInput = ({ formData, setFormData }) => {
   }, [inputValue, formData.tags, setFormData]);
 
   const handleKeyDown = useCallback(
-    (e) => {
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
       const isTriggerKey = e.key === '#' || e.key === 'Enter';
       const hasInput = inputValue.trim().length > 0;
 
@@ -28,21 +34,27 @@ const TagsInput = ({ formData, setFormData }) => {
     [inputValue, addTag],
   );
 
-  const removeTag = (index) => {
-    setFormData((prev) => ({
+  const removeTag = (index: number): void => {
+    setFormData((prev: any) => ({
       ...prev,
-      tags: prev.tags.filter((_, i) => i !== index),
+      tags: (prev.tags ?? []).filter((_: unknown, i: number) => i !== index),
     }));
   };
 
-  const handleDragEnd = ({ source, destination }) => {
+  const handleDragEnd = ({
+    source,
+    destination,
+  }: {
+    source: { index: number };
+    destination?: { index: number } | null;
+  }) => {
     if (!destination) return;
 
-    const reorderedTags = Array.from(formData.tags);
+    const reorderedTags = Array.from(formData.tags ?? []);
     const [movedTag] = reorderedTags.splice(source.index, 1);
     reorderedTags.splice(destination.index, 0, movedTag);
 
-    setFormData((prev) => ({
+    setFormData((prev: any) => ({
       ...prev,
       tags: reorderedTags,
     }));
@@ -97,3 +109,4 @@ const TagsInput = ({ formData, setFormData }) => {
 };
 
 export default TagsInput;
+

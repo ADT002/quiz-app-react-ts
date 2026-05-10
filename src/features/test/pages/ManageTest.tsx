@@ -9,6 +9,8 @@ import TestCardList from './TestTable';
 import { useTranslation } from 'react-i18next';
 import { useTestTemplates } from '~/features/test/useTests';
 import { useQuestions } from '~/features/question/useQuestions';
+import type { Question as CanonicalQuestion, QuestionType } from '~/features/question/types';
+import { QUESTION_TYPES } from '~/features/question/types';
 
 const initValue: TestFormData = {
   _id: '',
@@ -38,8 +40,25 @@ function ManageTest() {
   } = useTestTemplates();
   const { items: questionsFlat } = useQuestions();
 
-  // Re-shape thành Record<page, Question[]> để truyền vào ManageTestModal
-  const questionsByPage = useMemo(() => ({ 1: questionsFlat }), [questionsFlat]);
+  // Map shared Question -> canonical features/question/types.Question
+  const questionsByPage = useMemo(() => {
+    const toCanonical = (q: any): CanonicalQuestion => {
+      const typeStr: string | undefined = q?.type;
+      const isValidType = (QUESTION_TYPES as Array<{ value: QuestionType }>).some(
+        (t) => t.value === typeStr,
+      );
+
+      return {
+        ...q,
+        _id: q?._id,
+        type: (isValidType ? typeStr : 'single') as QuestionType,
+      };
+    };
+
+    return {
+      1: (questionsFlat ?? []).map(toCanonical),
+    };
+  }, [questionsFlat]);
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -338,7 +357,6 @@ function ManageTest() {
                 formData={formData}
                 setFormData={setFormData}
                 questions={questionsByPage}
-                selectable={false}
               />
             </motion.div>
           </motion.div>

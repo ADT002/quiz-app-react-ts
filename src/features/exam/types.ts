@@ -18,14 +18,18 @@ export interface RichText {
 
 export interface QuestionContent {
   content?: RichText;
-  image_url?: string;
-  video_url?: string;
-  audio_url?: string;
+  /** Optional file (image/audio/video) referenced by file_id. */
+  file_id?: string;
+}
+
+export interface FileRef {
+  file_id: string;
 }
 
 export interface PublicOption {
   id: string;
   text?: RichText;
+  file_id?: string;
 }
 
 export interface PublicFillBlank {
@@ -55,12 +59,43 @@ export interface PublicQuestion {
   question_content?: QuestionContent;
   score?: number;
   tags?: string[];
-  suggestion?: string;
+  suggestion?: string | string[];
+  files?: FileRef[];
   options?: PublicOption[];
   fill_in_the_blanks?: PublicFillBlank[];
   order_items?: PublicOrderItem[];
   match_items?: PublicMatchItem[];
   match_options?: PublicOption[];
+}
+
+/* ── Review shapes (BE serves these in /practice + /exam/start submitted ──
+ *    after end_time). Extra fields exposed once exam-secrecy no longer applies. */
+
+export interface ReviewOption extends PublicOption {
+  is_correct?: boolean;
+}
+
+export interface ReviewFillBlank extends PublicFillBlank {
+  correct_submission?: string;
+}
+
+export interface ReviewOrderItem extends PublicOrderItem {
+  order?: number;
+}
+
+export interface ReviewMatchOption extends PublicOption {
+  match_id?: string;
+}
+
+export interface ReviewQuestion
+  extends Omit<
+    PublicQuestion,
+    'options' | 'fill_in_the_blanks' | 'order_items' | 'match_options'
+  > {
+  options?: ReviewOption[];
+  fill_in_the_blanks?: ReviewFillBlank[];
+  order_items?: ReviewOrderItem[];
+  match_options?: ReviewMatchOption[];
 }
 
 /* ── Student answer payloads (gửi qua /draft + /submit) ──────────────────── */
@@ -142,6 +177,10 @@ export interface StartExamResponseSubmitted {
   submission_id: string;
   submission: SubmissionResult;
   server_now: string;
+  /** True nếu test_of_class.end_time đã qua. */
+  ended?: boolean;
+  /** Câu hỏi đầy đủ (kèm answer keys) — chỉ có khi `ended=true`. */
+  questions?: ReviewQuestion[];
 }
 
 export type StartExamResponse =

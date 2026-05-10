@@ -40,7 +40,7 @@ const ClassCard: React.FC<ClassCardProps> = ({ classData, onClick }) => {
 
       {/* Tags */}
       <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto scrollbar-thin">
-        {classData.tags.map((tag, idx) => (
+        {classData.tags ?? [].map((tag, idx) => (
           <span key={idx} className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
             #{tag}
           </span>

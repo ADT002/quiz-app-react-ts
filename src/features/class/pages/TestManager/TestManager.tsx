@@ -15,6 +15,8 @@ import { useQuestions } from '~/features/question/useQuestions';
 import type { CreateTestOfClassPayload } from '~/features/test/testSlice';
 import { ClassFormData } from '../ManageClass';
 import UserSubmitComponent from './UserSubmitComponent';
+import type { QuestionType } from '~/features/question/types';
+import { QUESTION_TYPES } from '~/features/question/types';
 
 interface Props {
   formData: ClassFormData;
@@ -58,10 +60,25 @@ export default function TestManagement({ formData }: Props) {
   const [isAddingToClass, setIsAddingToClass] = useState(false);
 
   /* Map flatten lại thành Record<page, Question[]> để truyền vào ManageTestModal */
-  const questionsByPage = useMemo(
-    () => ({ 1: questionsFlat }),
-    [questionsFlat],
-  );
+  // Map shared Question -> canonical features/question/types.Question
+  const questionsByPage = useMemo(() => {
+    const toCanonical = (q: any) => {
+      const typeStr: string | undefined = q?.type;
+      const isValidType = (QUESTION_TYPES as Array<{ value: QuestionType }>).some(
+        (t) => t.value === typeStr,
+      );
+
+      return {
+        ...q,
+        _id: q?._id,
+        type: (isValidType ? typeStr : 'single') as QuestionType,
+      };
+    };
+
+    return {
+      1: (questionsFlat ?? []).map(toCanonical),
+    };
+  }, [questionsFlat]);
 
   /* Derived */
   const templateTags = useMemo<string[]>(
@@ -200,7 +217,6 @@ export default function TestManagement({ formData }: Props) {
           formData={modalTest}
           setFormData={setModalTest}
           isEditing={isEditing}
-          selectable={!isReadOnly}
           onDelete={handleDeleteTestOfClass}
         />
       )}
@@ -332,11 +348,10 @@ export default function TestManagement({ formData }: Props) {
               <button
                 key={tag || '__all__'}
                 onClick={() => setTemplateTag(tag)}
-                className={`px-2.5 py-1 text-xs font-medium rounded-full transition ${
-                  templateTag === tag
-                    ? 'bg-[var(--qz-violet)] text-white'
-                    : 'bg-[var(--qz-bg)] text-[var(--qz-slate)] hover:bg-[var(--qz-violet-soft)]'
-                }`}
+                className={`px-2.5 py-1 text-xs font-medium rounded-full transition ${templateTag === tag
+                  ? 'bg-[var(--qz-violet)] text-white'
+                  : 'bg-[var(--qz-bg)] text-[var(--qz-slate)] hover:bg-[var(--qz-violet-soft)]'
+                  }`}
               >
                 {tag || 'Tất cả'}
               </button>
@@ -357,20 +372,18 @@ export default function TestManagement({ formData }: Props) {
                 <div
                   key={tmpl._id}
                   onClick={() => toggleTemplateSelect(tmpl._id)}
-                  className={`border rounded-lg p-3 cursor-pointer transition select-none ${
-                    isSelected
-                      ? 'border-[var(--qz-violet)] bg-[var(--qz-violet-soft)]'
-                      : 'border-[var(--qz-border)] bg-white hover:border-[var(--qz-slate-light)]'
-                  }`}
+                  className={`border rounded-lg p-3 cursor-pointer transition select-none ${isSelected
+                    ? 'border-[var(--qz-violet)] bg-[var(--qz-violet-soft)]'
+                    : 'border-[var(--qz-border)] bg-white hover:border-[var(--qz-slate-light)]'
+                    }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 min-w-0">
                       <div
-                        className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center ${
-                          isSelected
-                            ? 'bg-[var(--qz-violet)] border-[var(--qz-violet)]'
-                            : 'border-[var(--qz-border)]'
-                        }`}
+                        className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center ${isSelected
+                          ? 'bg-[var(--qz-violet)] border-[var(--qz-violet)]'
+                          : 'border-[var(--qz-border)]'
+                          }`}
                       >
                         {isSelected && <Check size={11} className="text-white" />}
                       </div>

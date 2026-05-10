@@ -8,9 +8,10 @@ import { generateObjectId } from '~/shared/utils/generateId';
 export interface QuestionMultiUploaderProps {
   options: Option[];
   fileUrl: string;
-  onChange: (fileName: string) => void;
+  onChange: (fileId: string) => void;
   updateOption: (options: Option[]) => void;
 }
+
 
 export default function QuestionMultiUploader({
   options,
@@ -23,8 +24,8 @@ export default function QuestionMultiUploader({
 
   /* ================= QUESTION IMAGE ================= */
   const handleSelectFile = useCallback(
-    (fileName: string) => {
-      onChange(fileName);
+    (fileId: string) => {
+      onChange(fileId);
       setIsModalImageOpen(false);
     },
     [onChange],
@@ -110,9 +111,13 @@ export default function QuestionMultiUploader({
           Upload File
         </button>
 
-        {<AllFileComponent isOpen={isModalImageOpen} onClose={() => {
-          setIsModalImageOpen(false)
-        }} select={handleSelectFile} />}
+        <AllFileComponent
+          isOpen={isModalImageOpen}
+          onClose={() => {
+            setIsModalImageOpen(false);
+          }}
+          onSelect={(f) => handleSelectFile(f.file_id)}
+        />
       </div >
 
       {/* ===== OPTIONS ===== */}

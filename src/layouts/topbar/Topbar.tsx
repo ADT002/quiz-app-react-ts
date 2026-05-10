@@ -30,9 +30,7 @@ const Topbar: React.FC<TopbarProps> = ({ onClickRight, isOpen, isHidden }) => {
           onClick={() => navigate('/dashboard')}
           className="flex items-center gap-3 group"
         >
-          <div className="h-10 w-10 rounded-lg bg-[var(--qz-violet-soft)] flex items-center justify-center group-hover:bg-[var(--qz-violet)] transition">
-            <img src="/logo.png" className="h-6 w-6" alt="Logo" />
-          </div>
+          <img src="/logo.png" className="h-10 w-10" alt="Logo" />
           {!isMobile && (
             <div className="text-left">
               <p className="text-sm font-bold text-[var(--qz-ink)] leading-tight">Quiz Management</p>

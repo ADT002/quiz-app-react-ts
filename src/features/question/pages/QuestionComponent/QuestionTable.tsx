@@ -33,13 +33,11 @@ function backfillIds(q: QuestionFormData): QuestionFormData {
 }
 
 interface QuestionTableProps {
-  selectable?: boolean;
   formDataTest?: TestFormData;
   setFormDataTest?: React.Dispatch<React.SetStateAction<TestFormData>>;
 }
 
 const QuestionTable: React.FC<QuestionTableProps> = ({
-  selectable = false,
   formDataTest,
   setFormDataTest,
 }) => {
@@ -112,7 +110,10 @@ const QuestionTable: React.FC<QuestionTableProps> = ({
   const allTopics = useMemo(() => {
     const set = new Set<string>();
     questions.forEach((q) => {
-      if (typeof q.topic === 'object' && q.topic?.topic_name) set.add(q.topic.topic_name);
+      const topic: any = (q as any).topic;
+      if (topic && typeof topic === 'object' && typeof topic.topic_name === 'string') {
+        set.add(topic.topic_name);
+      }
     });
     return Array.from(set).sort();
   }, [questions]);
@@ -120,7 +121,10 @@ const QuestionTable: React.FC<QuestionTableProps> = ({
   const allLevels = useMemo(() => {
     const set = new Set<string>();
     questions.forEach((q) => {
-      if (typeof q.level === 'object' && q.level?.level_name) set.add(q.level.level_name);
+      const level: any = (q as any).level;
+      if (level && typeof level === 'object' && typeof level.level_name === 'string') {
+        set.add(level.level_name);
+      }
     });
     return Array.from(set).sort();
   }, [questions]);
@@ -155,10 +159,18 @@ const QuestionTable: React.FC<QuestionTableProps> = ({
     return questions.filter((q) => {
       const questionText = q.question_content?.content?.text?.toLowerCase() ?? '';
       const tagText = q.tags?.join(' ').toLowerCase() ?? '';
+      const topicObj: any = (q as any).topic;
+      const levelObj: any = (q as any).level;
+
       const topicName =
-        typeof q.topic === 'object' ? q.topic?.topic_name?.toLowerCase() ?? '' : '';
+        topicObj && typeof topicObj === 'object' && typeof topicObj.topic_name === 'string'
+          ? topicObj.topic_name.toLowerCase()
+          : '';
+
       const levelName =
-        typeof q.level === 'object' ? q.level?.level_name?.toLowerCase() ?? '' : '';
+        levelObj && typeof levelObj === 'object' && typeof levelObj.level_name === 'string'
+          ? levelObj.level_name.toLowerCase()
+          : '';
 
       const matchSearch =
         !text ||
@@ -170,9 +182,16 @@ const QuestionTable: React.FC<QuestionTableProps> = ({
       const matchTag =
         selectedTags.length === 0 || q.tags?.some((t) => selectedTags.includes(t));
       const matchTopic =
-        selectedTopics.length === 0 || selectedTopics.includes(q.topic?.topic_name ?? '');
+        selectedTopics.length === 0 ||
+        selectedTopics.includes((typeof (q as any).topic === 'object' && (q as any).topic?.topic_name)
+          ? (q as any).topic.topic_name
+          : '');
+
       const matchLevel =
-        selectedLevels.length === 0 || selectedLevels.includes(q.level?.level_name ?? '');
+        selectedLevels.length === 0 ||
+        selectedLevels.includes((typeof (q as any).level === 'object' && (q as any).level?.level_name)
+          ? (q as any).level.level_name
+          : '');
 
       return matchSearch && matchTag && matchTopic && matchLevel;
     });
@@ -240,7 +259,7 @@ const QuestionTable: React.FC<QuestionTableProps> = ({
             />
           </button>
 
-          {!selectable && (
+          {(
             <button
               onClick={() => handleOpenModal()}
               className="qz-btn qz-btn-primary shrink-0"
@@ -419,7 +438,7 @@ const QuestionTable: React.FC<QuestionTableProps> = ({
           Hiển thị <strong className="text-[var(--qz-ink)]">{filteredData.length}</strong> /{' '}
           {questions.length} câu hỏi
         </p>
-        {selectable && formDataTest && (
+        {formDataTest && (
           <p className="qz-pill qz-pill-open">
             Đã chọn: {formDataTest.question_ids?.length ?? 0} câu · {formDataTest.test_score} điểm
           </p>
@@ -442,15 +461,15 @@ const QuestionTable: React.FC<QuestionTableProps> = ({
               ? 'Thử điều chỉnh bộ lọc hoặc từ khoá tìm kiếm.'
               : 'Tạo câu hỏi đầu tiên để xây dựng ngân hàng đề.'}
           </p>
-          {totalActiveFilters > 0 ? (
-            <button onClick={clearAllFilters} className="qz-btn qz-btn-secondary">
-              <X size={16} /> Xoá bộ lọc
-            </button>
-          ) : !selectable ? (
-            <button onClick={() => handleOpenModal()} className="qz-btn qz-btn-primary">
-              <Plus size={16} /> Tạo câu hỏi
-            </button>
-          ) : null}
+          {
+            totalActiveFilters > 0 ?
+              <><button onClick={clearAllFilters} className="qz-btn qz-btn-secondary">
+                <X size={16} /> Xoá bộ lọc
+              </button><button onClick={() => handleOpenModal()} className="qz-btn qz-btn-primary">
+                  <Plus size={16} /> Tạo câu hỏi
+                </button></>
+              : ""
+          }
         </div>
       ) : (
         <QuestionList
@@ -460,7 +479,6 @@ const QuestionTable: React.FC<QuestionTableProps> = ({
           handleDelete={handleDelete}
           toggleTagSelection={toggleTagSelection}
           selectedTags={selectedTags}
-          selectable={selectable}
           selectedQuestionIds={formDataTest?.question_ids ?? questionSelected}
           toggleQuestionSelection={toggleQuestionSelection}
         />

@@ -43,7 +43,7 @@ export function ClassTabs({
                     tab === 'tests'
                         ? formData.test && formData.test.length
                         : tab === 'tags'
-                            ? formData.tags.length
+                            ? formData.tags?.length
                             : tab === 'students'
                                 ? formData.students_accept.length
                                 : 0;

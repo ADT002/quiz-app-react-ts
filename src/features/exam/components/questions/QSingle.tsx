@@ -1,5 +1,6 @@
 import type { PublicQuestion, SingleAnswer } from '../../types';
 import { renderText } from '../../utils/renderText';
+import FileViewer from '~/shared/components/common/FileViewer';
 
 interface Props {
   question: PublicQuestion;
@@ -36,7 +37,10 @@ export function QSingle({ question, answer, onChange }: Props) {
               }
               className="accent-[var(--qz-violet)]"
             />
-            <span className="qz-body">{renderText(opt.text)}</span>
+            <span className="qz-body flex-1">{renderText(opt.text)}</span>
+            {opt.file_id && (
+              <FileViewer fileId={opt.file_id} className="max-h-20 rounded" />
+            )}
           </label>
         );
       })}
